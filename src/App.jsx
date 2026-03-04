@@ -5,6 +5,8 @@ import MenuCategories from './pages/MenuCategories';
 import MenuItems from './pages/MenuItems';
 import ParcelOrders from './pages/ParcelOrders';
 import CreateParcelOrder from './pages/CreateParcelOrder';
+import Reports from './pages/Reports';
+import Settings from './pages/Settings';
 
 function App() {
   return (
@@ -16,8 +18,8 @@ function App() {
           <Route path="menu-items" element={<MenuItems />} />
           <Route path="parcel-orders" element={<ParcelOrders />} />
           <Route path="create-parcel-order" element={<CreateParcelOrder />} />
-          <Route path="reports" element={<div className="p-8"><h2 className="text-2xl font-bold">Reports Page - Coming Soon</h2></div>} />
-          <Route path="settings" element={<div className="p-8"><h2 className="text-2xl font-bold">Settings Page - Coming Soon</h2></div>} />
+          <Route path="reports" element={<Reports />} />
+          <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>
     </Router>
