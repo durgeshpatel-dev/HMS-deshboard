@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import { 
   Home, 
   ShoppingBag, 
@@ -6,14 +7,17 @@ import {
   Grid, 
   FileText, 
   Settings,
+  Users,
   LogOut 
 } from 'lucide-react';
 
 const Sidebar = () => {
   const location = useLocation();
+  const { logout } = useAuth();
   
   const menuItems = [
     { path: '/', icon: Home, label: 'Billing Dashboard' },
+    { path: '/staff', icon: Users, label: 'Staff Management' },
     { path: '/menu-categories', icon: Grid, label: 'Menu Categories' },
     { path: '/menu-items', icon: ShoppingBag, label: 'Menu Items' },
     { path: '/parcel-orders', icon: Package, label: 'Parcel Orders' },
@@ -22,6 +26,12 @@ const Sidebar = () => {
   ];
   
   const isActive = (path) => location.pathname === path;
+  
+  const handleLogout = async () => {
+    if (confirm('Are you sure you want to logout?')) {
+      await logout();
+    }
+  };
   
   return (
     <aside className="w-64 bg-gray-900 text-white min-h-screen fixed left-0 top-0 overflow-y-auto">
@@ -49,7 +59,10 @@ const Sidebar = () => {
         </nav>
         
         <div className="mt-auto pt-8">
-          <button className="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-300 hover:bg-gray-800 w-full transition-colors">
+          <button 
+            onClick={handleLogout}
+            className="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-300 hover:bg-gray-800 w-full transition-colors"
+          >
             <LogOut size={20} />
             <span>Logout</span>
           </button>

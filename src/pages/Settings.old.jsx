@@ -1,15 +1,9 @@
-/**
- * Settings Page - Optimized Premium Version
- * Handles Restaurant Info, Tables, and Payment Methods
- * Staff Management moved to dedicated /staff page
- */
-
-import { useState, useCallback, useMemo } from 'react';
-import { Building2, CreditCard, Table2, Save, Plus, Pencil, Trash2, Upload } from 'lucide-react';
+import { useState } from 'react';
 import Header from '../components/layout/Header';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import Modal from '../components/common/Modal';
+import { Building2, Users, CreditCard, Table2, Save, Plus, Pencil, Trash2, Upload } from 'lucide-react';
 
 const Settings = () => {
   // Restaurant Info State
@@ -43,54 +37,51 @@ const Settings = () => {
   // Modal States
   const [showTableModal, setShowTableModal] = useState(false);
   const [editingTable, setEditingTable] = useState(null);
+
+  // Form States
   const [tableForm, setTableForm] = useState({ name: '', capacity: 2 });
 
-  // Restaurant Info Handlers (Optimized with useCallback)
-  const handleRestaurantInfoChange = useCallback((field, value) => {
+  // Restaurant Info Handlers
+  const handleRestaurantInfoChange = (field, value) => {
     setRestaurantInfo(prev => ({ ...prev, [field]: value }));
-  }, []);
+  };
 
-  const handleSaveRestaurantInfo = useCallback(() => {
+  const handleSaveRestaurantInfo = () => {
     console.log('Saving restaurant info:', restaurantInfo);
-    // TODO: Call API to save restaurant info
     alert('Restaurant information saved successfully!');
-  }, [restaurantInfo]);
+  };
 
-  const handleLogoUpload = useCallback((e) => {
+  const handleLogoUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        alert('Logo size must be less than 2MB');
-        return;
-      }
       const reader = new FileReader();
       reader.onloadend = () => {
         setRestaurantInfo(prev => ({ ...prev, logo: reader.result }));
       };
       reader.readAsDataURL(file);
     }
-  }, []);
+  };
 
-  // Table Handlers (Optimized)
-  const handleAddTable = useCallback(() => {
+  // Table Handlers
+  const handleAddTable = () => {
     setEditingTable(null);
     setTableForm({ name: '', capacity: 2 });
     setShowTableModal(true);
-  }, []);
+  };
 
-  const handleEditTable = useCallback((table) => {
+  const handleEditTable = (table) => {
     setEditingTable(table);
     setTableForm({ name: table.name, capacity: table.capacity });
     setShowTableModal(true);
-  }, []);
+  };
 
-  const handleDeleteTable = useCallback((tableId) => {
-    if (window.confirm('Are you sure you want to delete this table?')) {
+  const handleDeleteTable = (tableId) => {
+    if (confirm('Are you sure you want to delete this table?')) {
       setTables(prev => prev.filter(t => t.id !== tableId));
     }
-  }, []);
+  };
 
-  const handleSaveTable = useCallback(() => {
+  const handleSaveTable = () => {
     if (!tableForm.name.trim()) {
       alert('Please enter table name');
       return;
@@ -112,25 +103,20 @@ const Settings = () => {
       setTables(prev => [...prev, newTable]);
     }
     setShowTableModal(false);
-  }, [tableForm, editingTable, tables.length]);
+  };
 
-  // Payment Method Handlers (Optimized)
-  const handleTogglePaymentMethod = useCallback((methodId) => {
+  // Payment Method Handlers
+  const handleTogglePaymentMethod = (methodId) => {
     setPaymentMethods(prev => prev.map(pm => 
       pm.id === methodId ? { ...pm, enabled: !pm.enabled } : pm
     ));
-  }, []);
-
-  // Memoized computations
-  const isRestaurantInfoValid = useMemo(() => {
-    return restaurantInfo.name && restaurantInfo.phone && restaurantInfo.email && restaurantInfo.address;
-  }, [restaurantInfo]);
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       <Header title="Settings" />
       
-      <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
+      <div className="p-8">
         {/* Restaurant Information */}
         <Card 
           title="Restaurant Information" 
@@ -146,7 +132,7 @@ const Settings = () => {
                 type="text"
                 value={restaurantInfo.name}
                 onChange={(e) => handleRestaurantInfoChange('name', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
                 placeholder="Enter restaurant name"
               />
             </div>
@@ -159,7 +145,7 @@ const Settings = () => {
                 type="tel"
                 value={restaurantInfo.phone}
                 onChange={(e) => handleRestaurantInfoChange('phone', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
                 placeholder="+91 98765 43210"
               />
             </div>
@@ -172,7 +158,7 @@ const Settings = () => {
                 type="email"
                 value={restaurantInfo.email}
                 onChange={(e) => handleRestaurantInfoChange('email', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
                 placeholder="contact@restaurant.com"
               />
             </div>
@@ -185,7 +171,7 @@ const Settings = () => {
                 type="text"
                 value={restaurantInfo.address}
                 onChange={(e) => handleRestaurantInfoChange('address', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
                 placeholder="123 Main Street"
               />
             </div>
@@ -198,7 +184,7 @@ const Settings = () => {
                 type="time"
                 value={restaurantInfo.openingTime}
                 onChange={(e) => handleRestaurantInfoChange('openingTime', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
             </div>
 
@@ -210,7 +196,7 @@ const Settings = () => {
                 type="time"
                 value={restaurantInfo.closingTime}
                 onChange={(e) => handleRestaurantInfoChange('closingTime', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
             </div>
 
@@ -223,7 +209,7 @@ const Settings = () => {
                   <img 
                     src={restaurantInfo.logo} 
                     alt="Restaurant Logo" 
-                    className="w-20 h-20 object-cover rounded-lg border-2 border-gray-300 shadow-sm"
+                    className="w-20 h-20 object-cover rounded-lg border border-gray-300"
                   />
                 )}
                 <label className="cursor-pointer">
@@ -238,7 +224,6 @@ const Settings = () => {
                     {restaurantInfo.logo ? 'Change Logo' : 'Upload Logo'}
                   </div>
                 </label>
-                <p className="text-xs text-gray-500">Max size: 2MB</p>
               </div>
             </div>
           </div>
@@ -248,7 +233,6 @@ const Settings = () => {
               variant="primary" 
               icon={<Save size={16} />}
               onClick={handleSaveRestaurantInfo}
-              disabled={!isRestaurantInfoValid}
             >
               Save Restaurant Info
             </Button>
@@ -274,7 +258,7 @@ const Settings = () => {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
+                <tr className="border-b border-gray-200">
                   <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Table ID</th>
                   <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Name</th>
                   <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Capacity</th>
@@ -284,7 +268,7 @@ const Settings = () => {
               </thead>
               <tbody>
                 {tables.map((table) => (
-                  <tr key={table.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                  <tr key={table.id} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="py-3 px-4 font-semibold text-gray-900">{table.id}</td>
                     <td className="py-3 px-4 text-gray-700">{table.name}</td>
                     <td className="py-3 px-4 text-gray-700">{table.capacity} persons</td>
@@ -298,16 +282,93 @@ const Settings = () => {
                         <button
                           onClick={() => handleEditTable(table)}
                           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Edit Table"
-                          aria-label={`Edit ${table.name}`}
+                          title="Edit"
                         >
                           <Pencil size={16} />
                         </button>
                         <button
                           onClick={() => handleDeleteTable(table.id)}
                           className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Delete Table"
-                          aria-label={`Delete ${table.name}`}
+                          title="Delete"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+
+        {/* Staff Management */}
+        <Card 
+          title="Staff Management" 
+          icon={<Users size={20} />}
+          action={
+            <Button 
+              variant="primary" 
+              size="sm" 
+              icon={<Plus size={16} />}
+              onClick={handleAddStaff}
+            >
+              Add Staff
+            </Button>
+          }
+          className="mb-6"
+        >
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Name</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Role</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Phone</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">PIN</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Status</th>
+                  <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {staff.map((member) => (
+                  <tr key={member.id} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="py-3 px-4 font-semibold text-gray-900">{member.name}</td>
+                    <td className="py-3 px-4">
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                        member.role === 'Manager' ? 'bg-purple-100 text-purple-700' :
+                        member.role === 'Chef' ? 'bg-orange-100 text-orange-700' :
+                        'bg-blue-100 text-blue-700'
+                      }`}>
+                        {member.role}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-gray-700">{member.phone}</td>
+                    <td className="py-3 px-4 text-gray-700 font-mono">••••</td>
+                    <td className="py-3 px-4">
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={member.active}
+                          onChange={() => handleToggleStaffStatus(member.id)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+                      </label>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => handleEditStaff(member)}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Edit"
+                        >
+                          <Pencil size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteStaff(member.id)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Delete"
                         >
                           <Trash2 size={16} />
                         </button>
@@ -325,7 +386,7 @@ const Settings = () => {
           title="Payment Methods" 
           icon={<CreditCard size={20} />}
         >
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {paymentMethods.map((method) => (
               <div 
                 key={method.id}
@@ -343,7 +404,6 @@ const Settings = () => {
                       checked={method.enabled}
                       onChange={() => handleTogglePaymentMethod(method.id)}
                       className="sr-only peer"
-                      aria-label={`Toggle ${method.name}`}
                     />
                     <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
                   </label>
@@ -363,56 +423,118 @@ const Settings = () => {
         onClose={() => setShowTableModal(false)}
         title={editingTable ? 'Edit Table' : 'Add New Table'}
       >
-        <form onSubmit={(e) => { e.preventDefault(); handleSaveTable(); }}>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Table Name *
-              </label>
-              <input
-                type="text"
-                value={tableForm.name}
-                onChange={(e) => setTableForm({ ...tableForm, name: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                placeholder="e.g., Table 1, VIP Table"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Capacity (persons) *
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="20"
-                value={tableForm.capacity}
-                onChange={(e) => setTableForm({ ...tableForm, capacity: parseInt(e.target.value) || 2 })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                required
-              />
-            </div>
-
-            <div className="flex gap-3 pt-4">
-              <Button 
-                type="button"
-                variant="secondary" 
-                onClick={() => setShowTableModal(false)} 
-                className="flex-1"
-              >
-                Cancel
-              </Button>
-              <Button 
-                type="submit"
-                variant="primary" 
-                className="flex-1"
-              >
-                {editingTable ? 'Update Table' : 'Add Table'}
-              </Button>
-            </div>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Table Name *
+            </label>
+            <input
+              type="text"
+              value={tableForm.name}
+              onChange={(e) => setTableForm({ ...tableForm, name: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+              placeholder="e.g., Table 1, VIP Table"
+            />
           </div>
-        </form>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Capacity (persons) *
+            </label>
+            <input
+              type="number"
+              min="1"
+              max="20"
+              value={tableForm.capacity}
+              onChange={(e) => setTableForm({ ...tableForm, capacity: parseInt(e.target.value) || 2 })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <Button variant="secondary" onClick={() => setShowTableModal(false)} className="flex-1">
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={handleSaveTable} className="flex-1">
+              {editingTable ? 'Update Table' : 'Add Table'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Staff Modal */}
+      <Modal
+        isOpen={showStaffModal}
+        onClose={() => setShowStaffModal(false)}
+        title={editingStaff ? 'Edit Staff Member' : 'Add New Staff Member'}
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Full Name *
+            </label>
+            <input
+              type="text"
+              value={staffForm.name}
+              onChange={(e) => setStaffForm({ ...staffForm, name: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+              placeholder="Enter full name"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Role *
+            </label>
+            <select
+              value={staffForm.role}
+              onChange={(e) => setStaffForm({ ...staffForm, role: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+            >
+              <option value="Manager">Manager</option>
+              <option value="Waiter">Waiter</option>
+              <option value="Chef">Chef</option>
+              <option value="Cashier">Cashier</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Phone Number *
+            </label>
+            <input
+              type="tel"
+              value={staffForm.phone}
+              onChange={(e) => setStaffForm({ ...staffForm, phone: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+              placeholder="+91 98765 43210"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              4-Digit PIN *
+            </label>
+            <input
+              type="password"
+              maxLength="4"
+              value={staffForm.pin}
+              onChange={(e) => setStaffForm({ ...staffForm, pin: e.target.value.replace(/\D/g, '') })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+              placeholder="Enter 4-digit PIN"
+            />
+            <p className="text-xs text-gray-500 mt-1">This PIN will be used for staff authentication</p>
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <Button variant="secondary" onClick={() => setShowStaffModal(false)} className="flex-1">
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={handleSaveStaff} className="flex-1">
+              {editingStaff ? 'Update Staff' : 'Add Staff'}
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );
