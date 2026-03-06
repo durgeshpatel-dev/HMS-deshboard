@@ -11,6 +11,7 @@ import CreateParcelOrder from './pages/CreateParcelOrder';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import StaffManagement from './pages/StaffManagement';
+import KitchenDisplay from './pages/KitchenDisplay';
 import ManagerLogin from './pages/auth/ManagerLogin';
 import ManagerSignup from './pages/auth/ManagerSignup';
 import PendingApproval from './pages/auth/PendingApproval';
@@ -36,6 +37,7 @@ function App() {
               }
             >
               <Route index element={<BillingDashboard />} />
+              <Route path="kitchen" element={<KitchenDisplay />} />
               <Route path="staff" element={<StaffManagement />} />
               <Route path="menu-categories" element={<MenuCategories />} />
               <Route path="menu-items" element={<MenuItems />} />

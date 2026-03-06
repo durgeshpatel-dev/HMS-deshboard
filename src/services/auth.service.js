@@ -3,7 +3,7 @@
  */
 
 import apiClient, { storage } from './api';
-import { API_ENDPOINTS, DEMO_MANAGER } from '../config/api.config';
+import { API_ENDPOINTS } from '../config/api.config';
 
 class AuthService {
   /**
@@ -14,13 +14,7 @@ class AuthService {
       const response = await apiClient.post(API_ENDPOINTS.AUTH.SIGNUP, data);
       return response.data;
     } catch (error) {
-      // Fallback for demo - simulate signup
-      console.log('Backend not available, using demo mode');
-      return {
-        success: true,
-        message: 'Account created. Pending approval.',
-        data: { manager_id: 'demo_manager_1' }
-      };
+      throw new Error(error.response?.data?.message || 'Signup failed');
     }
   }
 
@@ -34,33 +28,22 @@ class AuthService {
         password,
       });
 
-      if (response.data.success && response.data.token) {
-        storage.saveToken(response.data.token);
-        storage.saveUser(response.data.user);
-        return response.data;
+      const payload = response.data?.data || response.data;
+      const accessToken = payload?.tokens?.accessToken || payload?.token;
+      const user = payload?.user;
+
+      if (response.data?.success && accessToken && user) {
+        storage.saveToken(accessToken);
+        storage.saveUser(user);
+        return {
+          ...response.data,
+          user,
+          token: accessToken,
+        };
       }
 
       throw new Error('Login failed');
     } catch (error) {
-      console.log('Backend not available, using demo credentials');
-      
-      // Fallback to demo credentials
-      if (email === DEMO_MANAGER.email && password === DEMO_MANAGER.password) {
-        const demoResponse = {
-          success: true,
-          token: 'demo_token_manager_' + Date.now(),
-          user: {
-            id: 'demo_manager_1',
-            email: DEMO_MANAGER.email,
-            restaurant_name: 'Demo Restaurant',
-            is_approved: true,
-          },
-        };
-        storage.saveToken(demoResponse.token);
-        storage.saveUser(demoResponse.user);
-        return demoResponse;
-      }
-
       throw new Error(error.response?.data?.message || 'Invalid email or password');
     }
   }

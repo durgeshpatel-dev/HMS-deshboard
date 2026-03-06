@@ -11,59 +11,74 @@ export const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5
 // API Timeout
 export const API_TIMEOUT = 30000; // 30 seconds
 
-// Demo credentials for testing
-export const DEMO_MANAGER = {
-  email: 'manager@demo.com',
-  password: 'manager123',
-  name: 'Demo Manager'
-};
-
 // API Endpoints
 export const API_ENDPOINTS = {
   // Manager Authentication
   AUTH: {
     SIGNUP: '/auth/manager/signup',
     LOGIN: '/auth/manager/login',
-    LOGOUT: '/auth/manager/logout',
+    LOGOUT: '/auth/logout',
   },
-  
-  // Staff Management
+
+  // Phase 3 backend currently does not include manager staff CRUD APIs
   STAFF: {
     GET_ALL: '/manager/staff',
     CREATE: '/manager/staff',
     UPDATE: (id) => `/manager/staff/${id}`,
     DELETE: (id) => `/manager/staff/${id}`,
   },
-  
-  // Menu Management
+
+  // Menu Management (Phase 3)
   MENU: {
-    GET_ALL: '/menu',
-    CREATE: '/manager/menu',
-    UPDATE: (id) => `/manager/menu/${id}`,
-    DELETE: (id) => `/manager/menu/${id}`,
+    CATEGORIES: {
+      GET_ALL: '/menu/categories',
+      CREATE: '/menu/categories',
+      UPDATE: (id) => `/menu/categories/${id}`,
+      DELETE: (id) => `/menu/categories/${id}`,
+    },
+    ITEMS: {
+      GET_ALL: '/menu/items',
+      CREATE: '/menu/items',
+      UPDATE: (id) => `/menu/items/${id}`,
+      DELETE: (id) => `/menu/items/${id}`,
+      AVAILABILITY: (id) => `/menu/items/${id}/availability`,
+    },
   },
-  
-  // Tables
+
+  // Tables (Phase 3)
   TABLES: {
     GET_ALL: '/tables',
-    CREATE: '/manager/tables',
+    GET_STATS: '/tables/stats',
+    CREATE: '/tables',
     UPDATE: (id) => `/tables/${id}`,
+    UPDATE_STATUS: (id) => `/tables/${id}/status`,
   },
-  
-  // Orders
+
+  // Orders (Phase 3)
   ORDERS: {
     GET_ALL: '/orders',
     GET_BY_ID: (id) => `/orders/${id}`,
-    CREATE_PARCEL: '/manager/orders/parcel',
-    COMPLETE: (id) => `/orders/${id}/complete`,
+    CREATE: '/orders',
+    UPDATE: (id) => `/orders/${id}`,
+    ADD_ITEMS: (id) => `/orders/${id}/items`,
+    KITCHEN: '/orders/kitchen',
+    MY_ORDERS: '/orders/my-orders',
   },
-  
-  // Reports
+
+  BILLS: {
+    GET_ALL: '/bills',
+    GET_BY_ID: (id) => `/bills/${id}`,
+    GET_BY_ORDER: (orderId) => `/bills/order/${orderId}`,
+    GENERATE: (orderId) => `/bills/order/${orderId}/generate`,
+    RECORD_PAYMENT: (id) => `/bills/${id}/payment`,
+  },
+
+  // Reports are currently computed from order APIs in frontend
   REPORTS: {
-    DAILY: '/manager/reports/daily',
-    WEEKLY: '/manager/reports/weekly',
-    MONTHLY: '/manager/reports/monthly',
-    CUSTOM: '/manager/reports/custom',
-    EXPORT: '/manager/reports/export',
+    // DAILY: '/manager/reports/daily',
+    // WEEKLY: '/manager/reports/weekly',
+    // MONTHLY: '/manager/reports/monthly',
+    // CUSTOM: '/manager/reports/custom',
+    // EXPORT: '/manager/reports/export',
   },
 };

@@ -8,7 +8,8 @@ import {
   FileText, 
   Settings,
   Users,
-  LogOut 
+  LogOut,
+  Flame
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -17,6 +18,7 @@ const Sidebar = () => {
   
   const menuItems = [
     { path: '/', icon: Home, label: 'Billing Dashboard' },
+    { path: '/kitchen', icon: Flame, label: 'Kitchen Display' },
     { path: '/staff', icon: Users, label: 'Staff Management' },
     { path: '/menu-categories', icon: Grid, label: 'Menu Categories' },
     { path: '/menu-items', icon: ShoppingBag, label: 'Menu Items' },

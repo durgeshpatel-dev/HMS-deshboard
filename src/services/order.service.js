@@ -33,30 +33,37 @@ class OrderService {
   }
 
   /**
-   * Create parcel order
+   * Create order
    */
-  async createParcelOrder(data) {
+  async createOrder(data) {
     try {
-      const response = await apiClient.post(API_ENDPOINTS.ORDERS.CREATE_PARCEL, data);
+      const response = await apiClient.post(API_ENDPOINTS.ORDERS.CREATE, data);
       return response.data;
     } catch (error) {
-      console.error('Failed to create parcel order:', error);
+      console.error('Failed to create order:', error);
       throw error;
     }
   }
 
   /**
-   * Complete order (manager only)
+   * Update order status/details
    */
-  async completeOrder(id, paymentData) {
+  async updateOrder(id, data) {
     try {
-      const response = await apiClient.put(
-        API_ENDPOINTS.ORDERS.COMPLETE(id),
-        paymentData
-      );
+      const response = await apiClient.put(API_ENDPOINTS.ORDERS.UPDATE(id), data);
       return response.data;
     } catch (error) {
-      console.error('Failed to complete order:', error);
+      console.error('Failed to update order:', error);
+      throw error;
+    }
+  }
+
+  async addItems(id, data) {
+    try {
+      const response = await apiClient.post(API_ENDPOINTS.ORDERS.ADD_ITEMS(id), data);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to add order items:', error);
       throw error;
     }
   }

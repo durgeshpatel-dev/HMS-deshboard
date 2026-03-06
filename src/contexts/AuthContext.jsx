@@ -6,6 +6,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AuthService from '../services/auth.service';
+import SocketService from '../services/socket.service';
 
 const AuthContext = createContext(null);
 
@@ -25,6 +26,11 @@ export const AuthProvider = ({ children }) => {
       const currentUser = AuthService.getCurrentUser();
       if (currentUser) {
         setUser(currentUser);
+        // Reconnect socket if user is already logged in (page refresh)
+        const token = AuthService.isAuthenticated() ? localStorage.getItem('hms_manager_token') : null;
+        if (token && !SocketService.isConnected()) {
+          SocketService.connect(token);
+        }
       }
     } catch (err) {
       console.error('Auth check failed:', err);
@@ -40,12 +46,27 @@ export const AuthProvider = ({ children }) => {
 
     try {
       const response = await AuthService.login(email, password);
-      
-      if (!response.user.is_approved) {
-        throw new Error('Your account is pending approval');
+
+      const status = response?.user?.status;
+      if (status && status !== 'active') {
+        if (status === 'pending_approval') {
+          throw new Error('Your account is pending approval');
+        }
+        if (status === 'rejected') {
+          throw new Error('Your account application was rejected');
+        }
+        if (status === 'suspended') {
+          throw new Error('Your account has been suspended');
+        }
       }
       
       setUser(response.user);
+      
+      // Connect Socket.io after successful login
+      if (response.token) {
+        SocketService.connect(response.token);
+      }
+      
       return response;
 
     } catch (err) {
@@ -78,6 +99,10 @@ export const AuthProvider = ({ children }) => {
     try {
       await AuthService.logout();
       setUser(null);
+      
+      // Disconnect Socket.io on logout
+      SocketService.disconnect();
+      
       navigate('/login', { replace: true });
     } catch (err) {
       console.error('Logout failed:', err);

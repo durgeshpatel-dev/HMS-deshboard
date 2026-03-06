@@ -18,7 +18,7 @@ const StaffManagement = () => {
     phone: '',
     pin: '',
     role: 'waiter',
-    is_active: true,
+    isActive: true,
   });
 
   useEffect(() => {
@@ -35,28 +35,11 @@ const StaffManagement = () => {
 
   const fetchStaff = async () => {
     try {
-      // Mock data for demo - replace with actual API call
-      const mockStaff = [
-        {
-          id: 'staff1',
-          name: 'John Doe',
-          phone: '9876543210',
-          role: 'waiter',
-          is_active: true,
-          created_at: new Date().toISOString(),
-        },
-        {
-          id: 'staff2',
-          name: 'Jane Smith',
-          phone: '9876543211',
-          role: 'cook',
-          is_active: true,
-          created_at: new Date().toISOString(),
-        },
-      ];
-      setStaff(mockStaff);
+      const response = await StaffService.getStaff();
+      setStaff(response?.data || []);
     } catch (error) {
       console.error('Failed to fetch staff:', error);
+      setStaff([]);
     }
   };
 
@@ -65,17 +48,30 @@ const StaffManagement = () => {
     setLoading(true);
 
     try {
+      const createPayload = {
+        name: formData.name,
+        phone: formData.phone,
+        role: formData.role,
+        isActive: formData.isActive,
+        ...(formData.pin ? { pin: formData.pin } : {}),
+      };
+
+      const updatePayload = {
+        name: formData.name,
+        role: formData.role,
+        isActive: formData.isActive,
+        ...(formData.pin ? { pin: formData.pin } : {}),
+      };
+
       if (editingStaff) {
-        // Update existing staff
-        await StaffService.updateStaff(editingStaff.id, formData);
+        await StaffService.updateStaff(editingStaff.id, updatePayload);
       } else {
-        // Create new staff
-        await StaffService.createStaff(formData);
+        await StaffService.createStaff(createPayload);
       }
       await fetchStaff();
       handleCloseModal();
     } catch (error) {
-      alert(error.message || 'Operation failed');
+      alert(error?.response?.data?.message || error.message || 'Operation failed');
     } finally {
       setLoading(false);
     }
@@ -88,7 +84,7 @@ const StaffManagement = () => {
       phone: staffMember.phone,
       pin: '', // Don't show existing PIN
       role: staffMember.role,
-      is_active: staffMember.is_active,
+      isActive: staffMember.isActive,
     });
     setShowModal(true);
   };
@@ -102,7 +98,7 @@ const StaffManagement = () => {
       await StaffService.deleteStaff(id);
       await fetchStaff();
     } catch (error) {
-      alert(error.message || 'Delete failed');
+      alert(error?.response?.data?.message || error.message || 'Delete failed');
     }
   };
 
@@ -114,21 +110,23 @@ const StaffManagement = () => {
       phone: '',
       pin: '',
       role: 'waiter',
-      is_active: true,
+      isActive: true,
     });
   };
 
   const getRoleBadgeColor = (role) => {
-    return role === 'waiter'
-      ? 'bg-blue-100 text-blue-800'
-      : 'bg-purple-100 text-purple-800';
+    const colors = {
+      waiter: 'bg-blue-100 text-blue-800',
+      cook: 'bg-purple-100 text-purple-800',
+    };
+    return colors[role] || 'bg-gray-100 text-gray-800';
   };
 
   const stats = {
     total: staff.length,
     waiters: staff.filter((s) => s.role === 'waiter').length,
     cooks: staff.filter((s) => s.role === 'cook').length,
-    active: staff.filter((s) => s.is_active).length,
+    active: staff.filter((s) => s.isActive).length,
   };
 
   return (
@@ -213,6 +211,7 @@ const StaffManagement = () => {
               >
                 Cooks ({stats.cooks})
               </button>
+
             </div>
 
             <Button
@@ -284,18 +283,18 @@ const StaffManagement = () => {
                             member.role
                           )}`}
                         >
-                          {member.role === 'waiter' ? 'Waiter' : 'Cook'}
+                          {member.role.charAt(0).toUpperCase() + member.role.slice(1)}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
                           className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            member.is_active
+                            member.isActive
                               ? 'bg-green-100 text-green-800'
                               : 'bg-red-100 text-red-800'
                           }`}
                         >
-                          {member.is_active ? 'Active' : 'Inactive'}
+                          {member.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -411,13 +410,13 @@ const StaffManagement = () => {
             <div className="flex items-center">
               <input
                 type="checkbox"
-                id="is_active"
-                checked={formData.is_active}
-                onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                id="isActive"
+                checked={formData.isActive}
+                onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
                 className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
                 disabled={loading}
               />
-              <label htmlFor="is_active" className="ml-2 text-sm text-gray-700">
+              <label htmlFor="isActive" className="ml-2 text-sm text-gray-700">
                 Active
               </label>
             </div>

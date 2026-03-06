@@ -494,7 +494,6 @@ const Settings = () => {
               <option value="Manager">Manager</option>
               <option value="Waiter">Waiter</option>
               <option value="Chef">Chef</option>
-              <option value="Cashier">Cashier</option>
             </select>
           </div>
 

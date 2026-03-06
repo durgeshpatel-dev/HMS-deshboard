@@ -1,6 +1,11 @@
 import { Bell, User, Search } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 
 const Header = ({ title }) => {
+  const { user } = useAuth();
+  const displayName = user?.name || user?.email || 'Manager';
+  const displayRole = user?.role === 'manager' ? 'Manager' : (user?.role || 'Administrator');
+
   return (
     <header className="bg-white shadow-sm border-b border-gray-200 px-8 py-4 sticky top-0 z-10">
       <div className="flex items-center justify-between">
@@ -25,11 +30,11 @@ const Header = ({ title }) => {
           
           <div className="flex items-center space-x-3">
             <div className="text-right">
-              <p className="text-sm font-semibold text-gray-800">Admin User</p>
-              <p className="text-xs text-gray-500">Administrator</p>
+              <p className="text-sm font-semibold text-gray-800">{displayName}</p>
+              <p className="text-xs text-gray-500 capitalize">{displayRole}</p>
             </div>
             <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center">
-              <User size={20} className="text-white" />
+              <span className="text-white font-semibold text-sm">{displayName.charAt(0).toUpperCase()}</span>
             </div>
           </div>
         </div>

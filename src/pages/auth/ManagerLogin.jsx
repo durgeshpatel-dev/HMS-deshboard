@@ -27,11 +27,6 @@ const ManagerLogin = () => {
     }
   };
 
-  const fillDemoCredentials = () => {
-    setEmail('manager@demo.com');
-    setPassword('manager123');
-  };
-
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
@@ -103,23 +98,6 @@ const ManagerLogin = () => {
               {loading ? 'Signing in...' : 'Sign In'}
             </Button>
           </form>
-
-          {/* Demo Credentials */}
-          <div className="mt-6 pt-6 border-t border-gray-200">
-            <p className="text-sm text-gray-600 text-center mb-3">
-              Demo Credentials (For Testing)
-            </p>
-            <button
-              onClick={fillDemoCredentials}
-              className="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700 transition-colors"
-              disabled={loading}
-            >
-              Fill Demo Credentials
-              <span className="block text-xs text-gray-500 mt-1">
-                manager@demo.com / manager123
-              </span>
-            </button>
-          </div>
 
           {/* Signup Link */}
           <p className="mt-6 text-center text-sm text-gray-600">

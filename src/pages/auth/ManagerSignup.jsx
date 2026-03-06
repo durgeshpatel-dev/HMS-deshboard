@@ -9,7 +9,8 @@ const ManagerSignup = () => {
     email: '',
     password: '',
     confirmPassword: '',
-    restaurant_name: '',
+    name: '',
+    restaurantName: '',
     phone: '',
     address: '',
   });
@@ -35,13 +36,29 @@ const ManagerSignup = () => {
       return;
     }
 
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters');
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters');
       return;
     }
 
-    if (formData.phone.length !== 10) {
-      setError('Phone number must be 10 digits');
+    if (!/[A-Z]/.test(formData.password)) {
+      setError('Password must contain at least one uppercase letter');
+      return;
+    }
+
+    if (!/[a-z]/.test(formData.password)) {
+      setError('Password must contain at least one lowercase letter');
+      return;
+    }
+
+    if (!/[0-9]/.test(formData.password)) {
+      setError('Password must contain at least one number');
+      return;
+    }
+
+    const phoneRegex = /^\+?[1-9]\d{1,14}$/;
+    if (!phoneRegex.test(formData.phone)) {
+      setError('Please enter a valid phone number');
       return;
     }
 
@@ -51,7 +68,8 @@ const ManagerSignup = () => {
       await signup({
         email: formData.email,
         password: formData.password,
-        restaurant_name: formData.restaurant_name,
+        name: formData.name,
+        restaurantName: formData.restaurantName,
         phone: formData.phone,
         address: formData.address,
       });
@@ -88,6 +106,26 @@ const ManagerSignup = () => {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Manager Name */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Your Name *
+              </label>
+              <div className="relative">
+                <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  placeholder="Your full name"
+                  required
+                  disabled={loading}
+                />
+              </div>
+            </div>
+
             {/* Restaurant Name */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -97,8 +135,8 @@ const ManagerSignup = () => {
                 <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <input
                   type="text"
-                  name="restaurant_name"
-                  value={formData.restaurant_name}
+                  name="restaurantName"
+                  value={formData.restaurantName}
                   onChange={handleChange}
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                   placeholder="Your Restaurant Name"
@@ -140,11 +178,10 @@ const ManagerSignup = () => {
                     name="phone"
                     value={formData.phone}
                     onChange={(e) => {
-                      const value = e.target.value.replace(/[^0-9]/g, '').slice(0, 10);
-                      setFormData({ ...formData, phone: value });
+                      setFormData({ ...formData, phone: e.target.value });
                     }}
                     className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    placeholder="10-digit number"
+                    placeholder="+1234567890 or 1234567890"
                     required
                     disabled={loading}
                   />
@@ -185,7 +222,7 @@ const ManagerSignup = () => {
                     value={formData.password}
                     onChange={handleChange}
                     className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    placeholder="Min. 6 characters"
+                    placeholder="Min. 8 characters with uppercase, lowercase, number"
                     required
                     disabled={loading}
                   />
