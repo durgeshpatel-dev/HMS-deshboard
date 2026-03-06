@@ -89,7 +89,7 @@ const MenuItems = () => {
       description: item.description || '',
       isAvailable: item.isAvailable,
       imageUrl: item.imageUrl || '',
-      preparationTime: item.preparationTime || 15,
+      preparationTime: item.customizations?.preparationTime ?? item.preparationTime ?? 15,
       isVegetarian: item.isVegetarian || false,
     });
     setShowModal(true);
@@ -141,7 +141,9 @@ const MenuItems = () => {
       price: Number(formData.price),
       isAvailable: formData.isAvailable,
       imageUrl: formData.imageUrl,
-      preparationTime: Number(formData.preparationTime),
+      customizations: {
+        preparationTime: Number(formData.preparationTime) || 0,
+      },
       isVegetarian: formData.isVegetarian,
     };
 
@@ -225,9 +227,9 @@ const MenuItems = () => {
                       {item.isVegetarian && (
                         <span className="bg-green-100 text-green-700 px-2 py-1 rounded">Veg</span>
                       )}
-                      {item.preparationTime != null && (
+                      {(item.customizations?.preparationTime ?? item.preparationTime) != null && (
                         <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                          {item.preparationTime}m
+                          {item.customizations?.preparationTime ?? item.preparationTime}m
                         </span>
                       )}
                     </div>

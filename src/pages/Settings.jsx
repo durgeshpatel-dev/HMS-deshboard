@@ -4,12 +4,31 @@
  * Staff Management moved to dedicated /staff page
  */
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Building2, CreditCard, Table2, Save, Plus, Pencil, Trash2, Upload } from 'lucide-react';
 import Header from '../components/layout/Header';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import Modal from '../components/common/Modal';
+import TableService from '../services/table.service';
+
+const TABLE_STATUS_OPTIONS = ['available', 'occupied', 'reserved', 'cleaning'];
+
+const extractList = (response) => {
+  if (Array.isArray(response?.data)) return response.data;
+  if (Array.isArray(response)) return response;
+  return [];
+};
+
+const extractObject = (response) => {
+  if (response?.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
+    return response.data;
+  }
+  if (response && typeof response === 'object' && !Array.isArray(response)) {
+    return response;
+  }
+  return {};
+};
 
 const Settings = () => {
   // Restaurant Info State
@@ -24,13 +43,18 @@ const Settings = () => {
   });
 
   // Tables State
-  const [tables, setTables] = useState([
-    { id: 'T1', name: 'Table 1', capacity: 4, status: 'available' },
-    { id: 'T2', name: 'Table 2', capacity: 2, status: 'available' },
-    { id: 'T3', name: 'Table 3', capacity: 6, status: 'available' },
-    { id: 'T4', name: 'Table 4', capacity: 4, status: 'available' },
-    { id: 'T5', name: 'Table 5', capacity: 8, status: 'available' },
-  ]);
+  const [tables, setTables] = useState([]);
+  const [availableTables, setAvailableTables] = useState([]);
+  const [tableStats, setTableStats] = useState({
+    total: 0,
+    available: 0,
+    occupied: 0,
+    reserved: 0,
+    cleaning: 0,
+  });
+  const [tablesLoading, setTablesLoading] = useState(true);
+  const [tableActionLoading, setTableActionLoading] = useState(false);
+  const [tableStatusLoadingId, setTableStatusLoadingId] = useState(null);
 
   // Payment Methods State
   const [paymentMethods, setPaymentMethods] = useState([
@@ -44,6 +68,40 @@ const Settings = () => {
   const [showTableModal, setShowTableModal] = useState(false);
   const [editingTable, setEditingTable] = useState(null);
   const [tableForm, setTableForm] = useState({ name: '', capacity: 2 });
+
+  const loadTableData = useCallback(async () => {
+    try {
+      setTablesLoading(true);
+      const [tablesResponse, availableResponse, statsResponse] = await Promise.all([
+        TableService.getTables(),
+        TableService.getAvailableTables(),
+        TableService.getTableStats(),
+      ]);
+
+      const allTables = extractList(tablesResponse);
+      const available = extractList(availableResponse);
+      const stats = extractObject(statsResponse);
+
+      setTables(allTables);
+      setAvailableTables(available);
+      setTableStats({
+        total: Number(stats.total ?? allTables.length),
+        available: Number(stats.available ?? available.length),
+        occupied: Number(stats.occupied ?? 0),
+        reserved: Number(stats.reserved ?? 0),
+        cleaning: Number(stats.cleaning ?? 0),
+      });
+    } catch (error) {
+      console.error('Failed to load table data:', error);
+      alert(error?.response?.data?.message || 'Failed to load table data');
+    } finally {
+      setTablesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadTableData();
+  }, [loadTableData]);
 
   // Restaurant Info Handlers (Optimized with useCallback)
   const handleRestaurantInfoChange = useCallback((field, value) => {
@@ -80,39 +138,71 @@ const Settings = () => {
 
   const handleEditTable = useCallback((table) => {
     setEditingTable(table);
-    setTableForm({ name: table.name, capacity: table.capacity });
+    setTableForm({
+      name: table.tableNumber || table.name || '',
+      capacity: Number(table.capacity) || 2,
+    });
     setShowTableModal(true);
   }, []);
 
-  const handleDeleteTable = useCallback((tableId) => {
+  const handleDeleteTable = useCallback(async (tableId) => {
     if (window.confirm('Are you sure you want to delete this table?')) {
-      setTables(prev => prev.filter(t => t.id !== tableId));
+      try {
+        setTableActionLoading(true);
+        await TableService.deleteTable(tableId);
+        await loadTableData();
+      } catch (error) {
+        console.error('Failed to delete table:', error);
+        alert(error?.response?.data?.message || 'Failed to delete table');
+      } finally {
+        setTableActionLoading(false);
+      }
     }
-  }, []);
+  }, [loadTableData]);
 
-  const handleSaveTable = useCallback(() => {
+  const handleSaveTable = useCallback(async () => {
     if (!tableForm.name.trim()) {
       alert('Please enter table name');
       return;
     }
 
-    if (editingTable) {
-      setTables(prev => prev.map(t => 
-        t.id === editingTable.id 
-          ? { ...t, name: tableForm.name, capacity: tableForm.capacity }
-          : t
-      ));
-    } else {
-      const newTable = {
-        id: `T${tables.length + 1}`,
-        name: tableForm.name,
-        capacity: tableForm.capacity,
-        status: 'available'
-      };
-      setTables(prev => [...prev, newTable]);
+    const payload = {
+      tableNumber: tableForm.name.trim(),
+      capacity: Number(tableForm.capacity),
+    };
+
+    try {
+      setTableActionLoading(true);
+      if (editingTable) {
+        await TableService.updateTable(editingTable.id, payload);
+      } else {
+        await TableService.createTable(payload);
+      }
+
+      await loadTableData();
+      setShowTableModal(false);
+      setEditingTable(null);
+      setTableForm({ name: '', capacity: 2 });
+    } catch (error) {
+      console.error('Failed to save table:', error);
+      alert(error?.response?.data?.message || 'Failed to save table');
+    } finally {
+      setTableActionLoading(false);
     }
-    setShowTableModal(false);
-  }, [tableForm, editingTable, tables.length]);
+  }, [tableForm, editingTable, loadTableData]);
+
+  const handleTableStatusChange = useCallback(async (tableId, status) => {
+    try {
+      setTableStatusLoadingId(tableId);
+      await TableService.updateTableStatus(tableId, status);
+      await loadTableData();
+    } catch (error) {
+      console.error('Failed to update table status:', error);
+      alert(error?.response?.data?.message || 'Failed to update table status');
+    } finally {
+      setTableStatusLoadingId(null);
+    }
+  }, [loadTableData]);
 
   // Payment Method Handlers (Optimized)
   const handleTogglePaymentMethod = useCallback((methodId) => {
@@ -125,6 +215,14 @@ const Settings = () => {
   const isRestaurantInfoValid = useMemo(() => {
     return restaurantInfo.name && restaurantInfo.phone && restaurantInfo.email && restaurantInfo.address;
   }, [restaurantInfo]);
+
+  const getStatusPillClasses = useCallback((status) => {
+    if (status === 'available') return 'bg-green-100 text-green-700';
+    if (status === 'occupied') return 'bg-orange-100 text-orange-700';
+    if (status === 'reserved') return 'bg-blue-100 text-blue-700';
+    if (status === 'cleaning') return 'bg-gray-200 text-gray-700';
+    return 'bg-gray-100 text-gray-600';
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -265,17 +363,45 @@ const Settings = () => {
               size="sm" 
               icon={<Plus size={16} />}
               onClick={handleAddTable}
+              disabled={tableActionLoading || tablesLoading}
             >
               Add Table
             </Button>
           }
           className="mb-6"
         >
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+            <div className="p-3 rounded-lg bg-gray-100">
+              <p className="text-xs text-gray-600">Total</p>
+              <p className="text-xl font-bold text-gray-900">{tableStats.total}</p>
+            </div>
+            <div className="p-3 rounded-lg bg-green-50">
+              <p className="text-xs text-green-700">Available</p>
+              <p className="text-xl font-bold text-green-800">{tableStats.available}</p>
+            </div>
+            <div className="p-3 rounded-lg bg-orange-50">
+              <p className="text-xs text-orange-700">Occupied</p>
+              <p className="text-xl font-bold text-orange-800">{tableStats.occupied}</p>
+            </div>
+            <div className="p-3 rounded-lg bg-blue-50">
+              <p className="text-xs text-blue-700">Reserved</p>
+              <p className="text-xl font-bold text-blue-800">{tableStats.reserved}</p>
+            </div>
+            <div className="p-3 rounded-lg bg-slate-100">
+              <p className="text-xs text-slate-700">Cleaning</p>
+              <p className="text-xl font-bold text-slate-800">{tableStats.cleaning}</p>
+            </div>
+          </div>
+
+          <div className="mb-4 text-sm text-gray-600">
+            Available tables endpoint count: <span className="font-semibold text-gray-900">{availableTables.length}</span>
+          </div>
+
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Table ID</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Table</th>
                   <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Name</th>
                   <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Capacity</th>
                   <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Status</th>
@@ -283,38 +409,69 @@ const Settings = () => {
                 </tr>
               </thead>
               <tbody>
-                {tables.map((table) => (
-                  <tr key={table.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                    <td className="py-3 px-4 font-semibold text-gray-900">{table.id}</td>
-                    <td className="py-3 px-4 text-gray-700">{table.name}</td>
-                    <td className="py-3 px-4 text-gray-700">{table.capacity} persons</td>
-                    <td className="py-3 px-4">
-                      <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
-                        {table.status}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          onClick={() => handleEditTable(table)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Edit Table"
-                          aria-label={`Edit ${table.name}`}
-                        >
-                          <Pencil size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteTable(table.id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Delete Table"
-                          aria-label={`Delete ${table.name}`}
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
+                {tablesLoading ? (
+                  <tr>
+                    <td colSpan="5" className="py-8 text-center text-gray-500">Loading table data...</td>
                   </tr>
-                ))}
+                ) : tables.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="py-8 text-center text-gray-500">No tables found.</td>
+                  </tr>
+                ) : (
+                  tables.map((table) => (
+                    <tr key={table.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                      <td className="py-3 px-4 font-semibold text-gray-900">
+                        {table.tableNumber || table.name || table.id}
+                      </td>
+                      <td className="py-3 px-4 text-gray-700">
+                        {table.name || table.tableNumber || '-'}
+                      </td>
+                      <td className="py-3 px-4 text-gray-700">{table.capacity} persons</td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-2">
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${getStatusPillClasses(table.status)}`}>
+                            {table.status}
+                          </span>
+                          <select
+                            className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                            value={table.status}
+                            onChange={(e) => handleTableStatusChange(table.id, e.target.value)}
+                            disabled={tableStatusLoadingId === table.id}
+                            aria-label={`Update status for ${table.tableNumber || table.name || table.id}`}
+                          >
+                            {TABLE_STATUS_OPTIONS.map((statusOption) => (
+                              <option key={statusOption} value={statusOption}>
+                                {statusOption}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => handleEditTable(table)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Edit Table"
+                            aria-label={`Edit ${table.tableNumber || table.name || table.id}`}
+                            disabled={tableActionLoading}
+                          >
+                            <Pencil size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteTable(table.id)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Delete Table"
+                            aria-label={`Delete ${table.tableNumber || table.name || table.id}`}
+                            disabled={tableActionLoading}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -367,14 +524,14 @@ const Settings = () => {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Table Name *
+                Table Number / Name *
               </label>
               <input
                 type="text"
                 value={tableForm.name}
                 onChange={(e) => setTableForm({ ...tableForm, name: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                placeholder="e.g., Table 1, VIP Table"
+                placeholder="e.g., T1 or VIP-1"
                 required
               />
             </div>
@@ -400,6 +557,7 @@ const Settings = () => {
                 variant="secondary" 
                 onClick={() => setShowTableModal(false)} 
                 className="flex-1"
+                disabled={tableActionLoading}
               >
                 Cancel
               </Button>
@@ -407,8 +565,9 @@ const Settings = () => {
                 type="submit"
                 variant="primary" 
                 className="flex-1"
+                disabled={tableActionLoading}
               >
-                {editingTable ? 'Update Table' : 'Add Table'}
+                {tableActionLoading ? 'Saving...' : (editingTable ? 'Update Table' : 'Add Table')}
               </Button>
             </div>
           </div>

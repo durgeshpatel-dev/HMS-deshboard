@@ -48,10 +48,13 @@ export const API_ENDPOINTS = {
   // Tables (Phase 3)
   TABLES: {
     GET_ALL: '/tables',
+    GET_AVAILABLE: '/tables/available',
+    GET_BY_ID: (id) => `/tables/${id}`,
     GET_STATS: '/tables/stats',
     CREATE: '/tables',
     UPDATE: (id) => `/tables/${id}`,
     UPDATE_STATUS: (id) => `/tables/${id}/status`,
+    DELETE: (id) => `/tables/${id}`,
   },
 
   // Orders (Phase 3)

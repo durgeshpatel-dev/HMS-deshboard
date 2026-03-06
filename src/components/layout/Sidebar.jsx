@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import { 
   Home, 
   ShoppingBag, 
@@ -9,12 +10,15 @@ import {
   Settings,
   Users,
   LogOut,
-  Flame
+  Flame,
+  Moon,
+  Sun
 } from 'lucide-react';
 
 const Sidebar = () => {
   const location = useLocation();
   const { logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   
   const menuItems = [
     { path: '/', icon: Home, label: 'Billing Dashboard' },
@@ -60,7 +64,15 @@ const Sidebar = () => {
           })}
         </nav>
         
-        <div className="mt-auto pt-8">
+        <div className="mt-auto pt-8 space-y-4">
+          <button 
+            onClick={toggleTheme}
+            className="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-300 hover:bg-gray-800 w-full transition-colors"
+          >
+            {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+            <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+          </button>
+          
           <button 
             onClick={handleLogout}
             className="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-300 hover:bg-gray-800 w-full transition-colors"

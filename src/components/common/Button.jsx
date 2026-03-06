@@ -10,11 +10,11 @@ const Button = ({
 }) => {
   const variants = {
     primary: 'bg-orange-500 hover:bg-orange-600 text-white',
-    secondary: 'bg-gray-200 hover:bg-gray-300 text-gray-700',
+    secondary: 'bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200',
     success: 'bg-green-500 hover:bg-green-600 text-white',
     danger: 'bg-red-500 hover:bg-red-600 text-white',
     warning: 'bg-yellow-500 hover:bg-yellow-600 text-white',
-    outline: 'border-2 border-orange-500 text-orange-500 hover:bg-orange-50'
+    outline: 'border-2 border-orange-500 text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900'
   };
   
   const sizes = {
