@@ -64,6 +64,8 @@ export const API_ENDPOINTS = {
     CREATE: '/orders',
     UPDATE: (id) => `/orders/${id}`,
     ADD_ITEMS: (id) => `/orders/${id}/items`,
+    UPDATE_ITEM: (orderId, itemId) => `/orders/${orderId}/items/${itemId}`,
+    DELETE_ITEM: (orderId, itemId) => `/orders/${orderId}/items/${itemId}`,
     KITCHEN: '/orders/kitchen',
     MY_ORDERS: '/orders/my-orders',
   },

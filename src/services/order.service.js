@@ -67,6 +67,26 @@ class OrderService {
       throw error;
     }
   }
+
+  async updateItem(orderId, itemId, data) {
+    try {
+      const response = await apiClient.put(API_ENDPOINTS.ORDERS.UPDATE_ITEM(orderId, itemId), data);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to update order item:', error);
+      throw error;
+    }
+  }
+
+  async deleteItem(orderId, itemId) {
+    try {
+      const response = await apiClient.delete(API_ENDPOINTS.ORDERS.DELETE_ITEM(orderId, itemId));
+      return response.data;
+    } catch (error) {
+      console.error('Failed to delete order item:', error);
+      throw error;
+    }
+  }
 }
 
 export default new OrderService();

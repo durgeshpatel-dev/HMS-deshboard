@@ -1,5 +1,8 @@
 import apiClient from './api';
 
+// Backend base (without /api/v1) for serving uploaded static files
+const BACKEND_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1').replace(/\/api\/v\d+$/, '');
+
 class ImageUploadService {
   async uploadImage(file) {
     if (!file) {
@@ -28,7 +31,9 @@ class ImageUploadService {
         },
       });
 
-      return response.data?.data?.fileUrl || response.data?.data?.url;
+      const relativePath = response.data?.data?.fileUrl || response.data?.data?.url;
+      // Return full URL so <img> tags can load it directly
+      return this.getImageUrl(relativePath);
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Upload failed');
     }
@@ -47,8 +52,7 @@ class ImageUploadService {
   getImageUrl(filePath) {
     if (!filePath) return null;
     if (filePath.startsWith('http')) return filePath;
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
-    return `${baseUrl}${filePath}`;
+    return `${BACKEND_BASE}${filePath.startsWith('/') ? '' : '/'}${filePath}`;
   }
 }
 

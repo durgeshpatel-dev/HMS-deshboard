@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Header from '../components/layout/Header';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
-import { Plus, Minus, Trash2, ShoppingCart, ArrowLeft } from 'lucide-react';
+import { Plus, Minus, Trash2, ShoppingCart, ArrowLeft, StickyNote } from 'lucide-react';
 import MenuService from '../services/menu.service';
 import OrderService from '../services/order.service';
 
@@ -19,6 +19,8 @@ const CreateParcelOrder = () => {
   const [menuItems, setMenuItems] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [orderItems, setOrderItems] = useState([]);
+  const [itemNotes, setItemNotes] = useState({}); // { [itemId]: noteText }
+  const [showNoteFor, setShowNoteFor] = useState(null); // itemId whose note input is open
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -70,10 +72,19 @@ const CreateParcelOrder = () => {
         })
         .filter((item) => item.quantity > 0)
     );
+    // Clean up note if item removed
+    setOrderItems((prev) => {
+      if (!prev.find((i) => i.id === id)) {
+        setItemNotes((n) => { const updated = { ...n }; delete updated[id]; return updated; });
+      }
+      return prev;
+    });
   };
 
   const removeItem = (id) => {
     setOrderItems(orderItems.filter((item) => item.id !== id));
+    setItemNotes((n) => { const updated = { ...n }; delete updated[id]; return updated; });
+    if (showNoteFor === id) setShowNoteFor(null);
   };
 
   const calculateSubtotal = () => orderItems.reduce((sum, item) => sum + Number(item.price) * item.quantity, 0);
@@ -93,12 +104,13 @@ const CreateParcelOrder = () => {
 
       const payload = {
         orderType: 'parcel',
-        customerName: customerInfo.name,
-        customerPhone: customerInfo.phone,
-        specialNotes: customerInfo.address,
+        customerName: customerInfo.name || undefined,
+        customerPhone: customerInfo.phone || undefined,
+        specialNotes: customerInfo.address || undefined,
         items: orderItems.map((item) => ({
           menuItemId: item.id,
           quantity: item.quantity,
+          ...(itemNotes[item.id]?.trim() ? { customizations: { note: itemNotes[item.id].trim() } } : {}),
         })),
       };
 
@@ -113,8 +125,8 @@ const CreateParcelOrder = () => {
     }
   };
 
-  const isFormValid =
-    customerInfo.name.trim() && customerInfo.phone.trim() && customerInfo.address.trim() && orderItems.length > 0;
+  // Only name is mandatory; items must be non-empty
+  const isFormValid = customerInfo.name.trim() && orderItems.length > 0;
 
   return (
     <div className="min-h-screen">
@@ -136,7 +148,9 @@ const CreateParcelOrder = () => {
               <Card title="Customer Information">
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Customer Name *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Customer Name <span className="text-red-500">*</span>
+                    </label>
                     <input
                       type="text"
                       value={customerInfo.name}
@@ -148,26 +162,28 @@ const CreateParcelOrder = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Phone Number <span className="text-gray-400 text-xs font-normal">(optional)</span>
+                    </label>
                     <input
                       type="tel"
                       value={customerInfo.phone}
                       onChange={(e) => setCustomerInfo({ ...customerInfo, phone: e.target.value })}
                       className="input-field"
                       placeholder="+91 XXXXX XXXXX"
-                      required
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Delivery Address *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Delivery Address / Note <span className="text-gray-400 text-xs font-normal">(optional)</span>
+                    </label>
                     <textarea
                       value={customerInfo.address}
                       onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })}
                       className="input-field resize-none"
                       rows="3"
-                      placeholder="Enter delivery address"
-                      required
+                      placeholder="Delivery address or order notes"
                     />
                   </div>
                 </div>
@@ -221,7 +237,7 @@ const CreateParcelOrder = () => {
             <div className="lg:col-span-1">
               <Card title="Order Summary" className="sticky top-24">
                 <div className="space-y-4">
-                  <div className="max-h-64 overflow-y-auto">
+                  <div className="max-h-80 overflow-y-auto">
                     {orderItems.length === 0 ? (
                       <div className="text-center py-8 text-gray-400">
                         <ShoppingCart size={48} className="mx-auto mb-4 opacity-50" />
@@ -229,23 +245,47 @@ const CreateParcelOrder = () => {
                       </div>
                     ) : (
                       orderItems.map((item) => (
-                        <div key={item.id} className="flex items-center justify-between py-3 border-b border-gray-200">
-                          <div className="flex-1">
-                            <div className="font-medium text-sm">{item.name}</div>
-                            <div className="text-xs text-gray-500">₹{Number(item.price).toFixed(2)} each</div>
+                        <div key={item.id} className="py-3 border-b border-gray-200">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="font-medium text-sm">{item.name}</div>
+                              <div className="text-xs text-gray-500">₹{Number(item.price).toFixed(2)} each</div>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                              <button type="button" onClick={() => updateQuantity(item.id, -1)} className="p-1 hover:bg-gray-100 rounded">
+                                <Minus size={14} />
+                              </button>
+                              <span className="font-semibold w-6 text-center text-sm">{item.quantity}</span>
+                              <button type="button" onClick={() => updateQuantity(item.id, 1)} className="p-1 hover:bg-gray-100 rounded">
+                                <Plus size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                title="Add note"
+                                onClick={() => setShowNoteFor(showNoteFor === item.id ? null : item.id)}
+                                className={`p-1 rounded ml-1 ${itemNotes[item.id]?.trim() ? 'text-orange-500 bg-orange-50' : 'text-gray-400 hover:bg-gray-100'}`}
+                              >
+                                <StickyNote size={14} />
+                              </button>
+                              <button type="button" onClick={() => removeItem(item.id)} className="p-1 hover:bg-red-100 text-red-600 rounded ml-1">
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
                           </div>
-                          <div className="flex items-center space-x-2">
-                            <button type="button" onClick={() => updateQuantity(item.id, -1)} className="p-1 hover:bg-gray-100 rounded">
-                              <Minus size={16} />
-                            </button>
-                            <span className="font-semibold w-8 text-center">{item.quantity}</span>
-                            <button type="button" onClick={() => updateQuantity(item.id, 1)} className="p-1 hover:bg-gray-100 rounded">
-                              <Plus size={16} />
-                            </button>
-                            <button type="button" onClick={() => removeItem(item.id)} className="p-1 hover:bg-red-100 text-red-600 rounded ml-2">
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
+                          {showNoteFor === item.id && (
+                            <div className="mt-2">
+                              <input
+                                type="text"
+                                value={itemNotes[item.id] || ''}
+                                onChange={(e) => setItemNotes({ ...itemNotes, [item.id]: e.target.value })}
+                                className="w-full text-xs border border-gray-200 rounded px-2 py-1 focus:outline-none focus:border-orange-400"
+                                placeholder="e.g. Extra spicy, no onion..."
+                              />
+                            </div>
+                          )}
+                          {itemNotes[item.id]?.trim() && showNoteFor !== item.id && (
+                            <div className="mt-1 text-xs text-orange-600 italic">📝 {itemNotes[item.id]}</div>
+                          )}
                         </div>
                       ))
                     )}
@@ -262,10 +302,6 @@ const CreateParcelOrder = () => {
                           <span className="text-gray-600">GST (5%):</span>
                           <span className="font-semibold">₹{calculateTax().toFixed(2)}</span>
                         </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Delivery Charge:</span>
-                          <span className="font-semibold">₹0.00</span>
-                        </div>
                         <div className="border-t pt-2 flex justify-between text-lg font-bold">
                           <span>Total:</span>
                           <span className="text-orange-600">₹{calculateTotal().toFixed(2)}</span>
@@ -275,7 +311,7 @@ const CreateParcelOrder = () => {
                       <div className="bg-orange-50 p-3 rounded-lg">
                         <div className="text-sm font-semibold text-orange-800 mb-1">Order Details</div>
                         <div className="text-xs text-orange-600">
-                          {orderItems.length} items • {orderItems.reduce((sum, item) => sum + item.quantity, 0)} total quantity
+                          {orderItems.length} items • {orderItems.reduce((sum, item) => sum + item.quantity, 0)} total qty
                         </div>
                       </div>
                     </>

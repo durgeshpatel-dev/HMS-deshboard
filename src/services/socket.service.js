@@ -6,13 +6,27 @@ class SocketService {
   constructor() {
     this.socket = null;
     this.connected = false;
+    this.connecting = false;
     this.listeners = {};
   }
 
   connect(token) {
-    if (this.connected) {
+    if (this.connected || this.connecting) {
       return;
     }
+
+    // If a stale socket instance exists, fully clean it up before reconnecting.
+    if (this.socket) {
+      try {
+        this.socket.removeAllListeners();
+        this.socket.disconnect();
+      } catch {
+        // ignore cleanup errors
+      }
+      this.socket = null;
+    }
+
+    this.connecting = true;
 
     try {
       this.socket = io(SOCKET_URL, {
@@ -22,15 +36,15 @@ class SocketService {
         reconnection: true,
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
-        reconnectionAttempts: 5,
+        reconnectionAttempts: Infinity,
         transports: ['websocket', 'polling'],
       });
 
       this.setupEventListeners();
-      this.connected = true;
 
-      console.log('Socket.io connected');
+      console.log('Socket.io connecting...');
     } catch (error) {
+      this.connecting = false;
       console.error('Socket.io connection error:', error);
     }
   }
@@ -41,13 +55,20 @@ class SocketService {
     this.socket.on('connect', () => {
       console.log('Socket connected:', this.socket.id);
       this.connected = true;
+      this.connecting = false;
       this.emit('socket:connected');
     });
 
     this.socket.on('disconnect', () => {
       console.log('Socket disconnected');
       this.connected = false;
+      this.connecting = false;
       this.emit('socket:disconnected');
+    });
+
+    this.socket.on('connect_error', () => {
+      this.connected = false;
+      this.connecting = false;
     });
 
     this.socket.on('order:created', (data) => {
@@ -66,12 +87,32 @@ class SocketService {
       this.emit('bill:updated', data);
     });
 
+    // Backend emits 'table:updated' for all table mutations (create, update, status, delete)
+    this.socket.on('table:updated', (data) => {
+      this.emit('table:updated', data);
+    });
+
+    // Legacy alias kept for backward compat
     this.socket.on('table:status', (data) => {
-      this.emit('table:status', data);
+      this.emit('table:updated', data);
     });
 
     this.socket.on('kitchen:alert', (data) => {
       this.emit('kitchen:alert', data);
+    });
+
+    // Menu & category mutations (create, update, delete, availability toggle)
+    this.socket.on('menu:updated', (data) => {
+      this.emit('menu:updated', data);
+    });
+
+    this.socket.on('category:updated', (data) => {
+      this.emit('category:updated', data);
+    });
+
+    // Billing request from waiter
+    this.socket.on('billing:request', (data) => {
+      this.emit('billing:request', data);
     });
 
     this.socket.on('error', (error) => {
@@ -84,6 +125,7 @@ class SocketService {
     if (this.socket) {
       this.socket.disconnect();
       this.connected = false;
+      this.connecting = false;
       this.socket = null;
     }
   }

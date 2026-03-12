@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import MainLayout from './components/layout/MainLayout';
@@ -23,6 +24,7 @@ function App() {
       <ThemeProvider>
         <Router>
           <AuthProvider>
+            <NotificationProvider>
             <Routes>
               {/* Public Routes */}
               <Route path="/login" element={<ManagerLogin />} />
@@ -52,6 +54,7 @@ function App() {
               {/* Catch all - redirect to home */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
+            </NotificationProvider>
           </AuthProvider>
         </Router>
       </ThemeProvider>

@@ -30,10 +30,14 @@ class AuthService {
 
       const payload = response.data?.data || response.data;
       const accessToken = payload?.tokens?.accessToken || payload?.token;
+      const refreshToken = payload?.tokens?.refreshToken;
       const user = payload?.user;
 
       if (response.data?.success && accessToken && user) {
         storage.saveToken(accessToken);
+        if (refreshToken) {
+          storage.saveRefreshToken(refreshToken);
+        }
         storage.saveUser(user);
         return {
           ...response.data,

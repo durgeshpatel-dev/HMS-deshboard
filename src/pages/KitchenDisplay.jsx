@@ -59,7 +59,11 @@ const KitchenDisplay = () => {
 
   const handleStatusChange = async (orderId, newStatus) => {
     try {
-      await OrderService.updateOrder(orderId, { kitchenStatus: newStatus });
+      // Update both kitchenStatus AND status to keep them in sync
+      const payload = { kitchenStatus: newStatus };
+      if (newStatus === 'preparing') payload.status = 'preparing';
+      if (newStatus === 'ready') payload.status = 'ready';
+      await OrderService.updateOrder(orderId, payload);
       fetchOrders();
     } catch (error) {
       console.error('Failed to update order status:', error);

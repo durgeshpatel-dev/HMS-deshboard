@@ -1,14 +1,20 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import Header from '../components/layout/Header';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import Modal from '../components/common/Modal';
-import { User, CreditCard, Check } from 'lucide-react';
+import ToastContainer from '../components/common/Toast';
+import useToast from '../hooks/useToast';
+import { useSocket } from '../hooks/useSocket';
+import { User, CreditCard, Check, RefreshCw, Printer } from 'lucide-react';
 import apiClient from '../services/api';
 import OrderService from '../services/order.service';
 import BillService from '../services/bill.service';
+import SettingsService from '../services/settings.service';
+import PrintableBill from '../components/PrintableBill';
 
 const BillingDashboard = () => {
+  const { toasts, toast, dismissToast } = useToast();
   const [tables, setTables] = useState([]);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -18,28 +24,74 @@ const BillingDashboard = () => {
   const [selectedBill, setSelectedBill] = useState(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [discountPercentage, setDiscountPercentage] = useState('0');
+  const [extraCharges, setExtraCharges] = useState('0');
+  const [restaurantInfo, setRestaurantInfo] = useState(null);
+  const lastBillingToastRef = useRef({ key: '', ts: 0 });
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [tablesRes, ordersRes] = await Promise.all([
+      const [tablesRes, ordersRes, settingsRes] = await Promise.all([
         apiClient.get('/tables'),
         OrderService.getOrders(),
+        SettingsService.getRestaurantSettings(),
       ]);
 
       setTables(tablesRes?.data?.data || []);
       setOrders(ordersRes?.data || []);
+      setRestaurantInfo(settingsRes?.data || null);
     } catch (error) {
       console.error('Failed to load billing data:', error);
-      alert('Failed to load billing data');
+      toast.error('Failed to load billing data');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // Silent background refresh (no loading spinner) for socket-triggered updates
+  const silentRefresh = useCallback(async () => {
+    try {
+      const [tablesRes, ordersRes] = await Promise.all([
+        apiClient.get('/tables'),
+        OrderService.getOrders(),
+      ]);
+      setTables(tablesRes?.data?.data || []);
+      setOrders(ordersRes?.data || []);
+    } catch (error) {
+      console.error('Silent refresh failed:', error);
+    }
+  }, []);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
+
+  // Real-time table updates via socket
+  useSocket('table:updated', useCallback(() => {
+    silentRefresh();
+  }, [silentRefresh]));
+
+  // Real-time order updates via socket
+  useSocket('order:created', useCallback(() => {
+    silentRefresh();
+  }, [silentRefresh]));
+
+  useSocket('order:updated', useCallback(() => {
+    silentRefresh();
+  }, [silentRefresh]));
+
+  // Billing request notification from waiter
+  useSocket('billing:request', useCallback((data) => {
+    silentRefresh();
+    const key = `${data?.orderId || ''}-${data?.tableId || ''}`;
+    const now = Date.now();
+    if (lastBillingToastRef.current.key === key && now - lastBillingToastRef.current.ts < 8000) {
+      return;
+    }
+    lastBillingToastRef.current = { key, ts: now };
+    toast.success(`🔔 Table ${data?.tableLabel || data?.tableId || '?'} - ${data?.waiterName || 'Waiter'} requests billing!`);
+  }, [silentRefresh]));
 
   const activeOrderByTable = useMemo(() => {
     const activeStatuses = ['pending', 'confirmed', 'preparing', 'ready', 'served', 'billing'];
@@ -48,7 +100,9 @@ const BillingDashboard = () => {
     orders
       .filter((o) => o.tableId && activeStatuses.includes(o.status))
       .forEach((order) => {
-        map.set(order.tableId, order);
+        const existing = map.get(order.tableId) || [];
+        existing.push(order);
+        map.set(order.tableId, existing);
       });
 
     return map;
@@ -56,16 +110,19 @@ const BillingDashboard = () => {
 
   const selectTableForBilling = async (table) => {
     setSelectedTable(table);
-    const order = activeOrderByTable.get(table.id) || null;
-    setSelectedOrder(order);
+    setDiscountPercentage('0');
+    setExtraCharges('0');
+    const tableOrders = activeOrderByTable.get(table.id) || [];
+    const primaryOrder = tableOrders[0] || null;
+    setSelectedOrder(primaryOrder);
 
-    if (!order) {
+    if (!primaryOrder) {
       setSelectedBill(null);
       return;
     }
 
     try {
-      const billRes = await BillService.getBillByOrder(order.id);
+      const billRes = await BillService.getBillByOrder(primaryOrder.id);
       setSelectedBill(billRes?.data || null);
     } catch (error) {
       console.error('Failed to fetch bill:', error);
@@ -78,13 +135,65 @@ const BillingDashboard = () => {
 
     try {
       setActionLoading(true);
-      const billRes = await BillService.generateBill(selectedOrder.id);
+      const discountPctNum = Number(discountPercentage || 0);
+      const extraChargesNum = Number(extraCharges || 0);
+
+      if (!Number.isFinite(discountPctNum) || discountPctNum < 0 || discountPctNum > 100) {
+        toast.error('Discount must be between 0% and 100%');
+        setActionLoading(false);
+        return;
+      }
+
+      if (!Number.isFinite(extraChargesNum) || extraChargesNum < 0) {
+        toast.error('Extra charges must be 0 or more');
+        setActionLoading(false);
+        return;
+      }
+
+      const payload = {};
+      if (discountPctNum > 0) {
+        const computedDiscountAmount = (combinedSubtotal * discountPctNum) / 100;
+        payload.discountPercentage = discountPctNum;
+        payload.discountAmount = Number.isFinite(computedDiscountAmount) ? computedDiscountAmount : 0;
+      }
+      if (extraChargesNum > 0) payload.extraCharges = extraChargesNum;
+
+      let billRes;
+      try {
+        billRes = await BillService.generateBill(selectedOrder.id, payload);
+      } catch (firstError) {
+        const details = firstError?.response?.data?.errors;
+        const message = firstError?.response?.data?.message || '';
+        const detailText = Array.isArray(details)
+          ? details.map((d) => `${d?.path || ''} ${d?.message || ''}`.trim()).join(' | ')
+          : '';
+
+        const needsLegacyRetry =
+          firstError?.response?.status === 400 &&
+          /(discountPercentage|extraCharges|Validation failed|Unknown argument)/i.test(`${message} ${detailText}`);
+
+        if (!needsLegacyRetry) {
+          throw firstError;
+        }
+
+        const legacyPayload = {};
+        const legacyDiscountAmount = (combinedSubtotal * discountPctNum) / 100;
+        if (Number.isFinite(legacyDiscountAmount) && legacyDiscountAmount > 0) {
+          legacyPayload.discountAmount = legacyDiscountAmount;
+        }
+
+        billRes = await BillService.generateBill(selectedOrder.id, legacyPayload);
+      }
       setSelectedBill(billRes?.data || null);
       await loadData();
-      alert('Bill generated successfully');
+      toast.success('Bill generated successfully');
     } catch (error) {
       console.error('Failed to generate bill:', error);
-      alert(error?.response?.data?.message || 'Failed to generate bill');
+      const details = error?.response?.data?.errors;
+      const firstDetail = Array.isArray(details) && details.length > 0
+        ? details[0]?.message
+        : null;
+      toast.error(firstDetail || error?.response?.data?.message || 'Failed to generate bill');
     } finally {
       setActionLoading(false);
     }
@@ -104,13 +213,21 @@ const BillingDashboard = () => {
         await selectTableForBilling(latestTable);
       }
 
-      alert('Payment recorded and table closed successfully');
+      toast.success('Payment recorded — table is now available');
     } catch (error) {
       console.error('Failed to record payment:', error);
-      alert(error?.response?.data?.message || 'Failed to record payment');
+      toast.error(error?.response?.data?.message || 'Failed to record payment');
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const printBill = () => {
+    if (!selectedBill) {
+      toast.error('Please generate a bill first');
+      return;
+    }
+    window.print();
   };
 
   const getTableStatusColor = (status) => {
@@ -119,24 +236,68 @@ const BillingDashboard = () => {
       case 'occupied': return 'bg-orange-100 border-orange-500 text-orange-700';
       case 'billing': return 'bg-purple-100 border-purple-500 text-purple-700';
       case 'reserved': return 'bg-blue-100 border-blue-500 text-blue-700';
+      case 'cleaning': return 'bg-yellow-100 border-yellow-500 text-yellow-700';
       default: return 'bg-gray-100 border-gray-500 text-gray-700';
     }
   };
 
-  const currentSubtotal = Number(selectedBill?.subtotal ?? selectedOrder?.subtotal ?? 0);
-  const currentTax = Number(selectedBill?.taxAmount ?? selectedOrder?.taxAmount ?? 0);
-  const currentDiscount = Number(selectedBill?.discountAmount ?? selectedOrder?.discountAmount ?? 0);
-  const currentTotal = Number(selectedBill?.totalAmount ?? selectedOrder?.totalAmount ?? 0);
+  // Combine items from ALL orders for the selected table
+  const selectedTableOrders = selectedTable ? (activeOrderByTable.get(selectedTable.id) || []) : [];
+  const combinedOrderItems = useMemo(() => {
+    const map = new Map();
+    for (const order of selectedTableOrders) {
+      for (const item of (order.items || [])) {
+        const key = item.menuItem?.id || item.menuItemId || item.id;
+        const existing = map.get(key);
+        if (existing) {
+          map.set(key, {
+            ...existing,
+            quantity: existing.quantity + item.quantity,
+            subtotal: Number(existing.subtotal) + Number(item.subtotal),
+          });
+        } else {
+          map.set(key, { ...item });
+        }
+      }
+    }
+    return Array.from(map.values());
+  }, [selectedTableOrders]);
 
-  const orderItems = selectedOrder?.items || [];
+  const combinedSubtotal = selectedTableOrders.reduce((sum, o) => sum + Number(o.subtotal || 0), 0);
+  const combinedTax = selectedTableOrders.reduce((sum, o) => sum + Number(o.taxAmount || 0), 0);
+  const combinedTotal = selectedTableOrders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
 
-  const billingTables = tables.filter((t) => ['occupied', 'billing'].includes(t.status));
+  const currentSubtotal = Number(selectedBill?.subtotal ?? combinedSubtotal);
+  const currentTax = Number(selectedBill?.taxAmount ?? combinedTax);
+  const currentDiscount = Number(selectedBill?.discountAmount ?? 0);
+  const currentDiscountPercentage = Number(selectedBill?.discountPercentage ?? 0);
+  const currentExtraCharges = Number(selectedBill?.extraCharges ?? 0);
+  const currentTotal = Number(selectedBill?.totalAmount ?? combinedTotal);
+
+  const orderItems = combinedOrderItems;
+
+  // Show all restaurant tables sorted by priority (billing/occupied first)
+  const billingTables = useMemo(() => {
+    const statusPriority = { billing: 0, occupied: 1, reserved: 2, cleaning: 3, available: 4 };
+    return [...tables].sort((a, b) => (statusPriority[a.status] ?? 5) - (statusPriority[b.status] ?? 5));
+  }, [tables]);
+
+  // Table status counts for summary display
+  const tableStatusCounts = useMemo(() => ({
+    total: tables.length,
+    available: tables.filter(t => t.status === 'available').length,
+    occupied: tables.filter(t => t.status === 'occupied').length,
+    billing: tables.filter(t => t.status === 'billing').length,
+    reserved: tables.filter(t => t.status === 'reserved').length,
+    cleaning: tables.filter(t => t.status === 'cleaning').length,
+  }), [tables]);
 
   return (
     <div className="min-h-screen">
       <Header title="Billing Dashboard" />
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       
-      <div className="p-8">
+      <div className="p-8 no-print">
         {loading ? (
           <Card>
             <div className="py-8 text-center text-gray-500">Loading billing data...</div>
@@ -145,11 +306,35 @@ const BillingDashboard = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Tables Section */}
           <div className="lg:col-span-2">
-            <Card title="Occupied / Billing Tables" className="mb-6">
+            <Card
+              title="Restaurant Tables"
+              action={
+                <button
+                  onClick={loadData}
+                  className="p-1.5 text-gray-400 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition-colors"
+                  title="Refresh tables"
+                  aria-label="Refresh"
+                >
+                  <RefreshCw size={16} />
+                </button>
+              }
+              className="mb-6"
+            >
+              {/* Table status summary */}
+              <div className="flex flex-wrap gap-2 mb-4 text-xs font-medium">
+                <span className="px-2.5 py-1 rounded-full bg-gray-100 text-gray-700">Total: {tableStatusCounts.total}</span>
+                <span className="px-2.5 py-1 rounded-full bg-green-100 text-green-700">Available: {tableStatusCounts.available}</span>
+                <span className="px-2.5 py-1 rounded-full bg-orange-100 text-orange-700">Occupied: {tableStatusCounts.occupied}</span>
+                <span className="px-2.5 py-1 rounded-full bg-purple-100 text-purple-700">Billing: {tableStatusCounts.billing}</span>
+                {tableStatusCounts.reserved > 0 && <span className="px-2.5 py-1 rounded-full bg-blue-100 text-blue-700">Reserved: {tableStatusCounts.reserved}</span>}
+                {tableStatusCounts.cleaning > 0 && <span className="px-2.5 py-1 rounded-full bg-yellow-100 text-yellow-700">Cleaning: {tableStatusCounts.cleaning}</span>}
+              </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {billingTables.map(table => {
-                  const tableOrder = activeOrderByTable.get(table.id);
-                  const itemCount = tableOrder?.items?.length || 0;
+                  const tableOrders = activeOrderByTable.get(table.id) || [];
+                  const itemCount = tableOrders.reduce(
+                    (sum, o) => sum + (o.items || []).reduce((s, i) => s + i.quantity, 0), 0
+                  );
 
                   return (
                   <button
@@ -178,7 +363,7 @@ const BillingDashboard = () => {
                 )})}
                 {billingTables.length === 0 && (
                   <div className="col-span-full py-8 text-center text-gray-500">
-                    No occupied tables pending billing.
+                    No tables found. Add tables from Settings page.
                   </div>
                 )}
               </div>
@@ -202,8 +387,12 @@ const BillingDashboard = () => {
                       </div>
                       {selectedOrder && (
                         <div className="flex justify-between text-sm mt-2">
-                          <span className="text-gray-600">Order No:</span>
-                          <span className="font-semibold">{selectedOrder.orderNumber}</span>
+                          <span className="text-gray-600">{selectedTableOrders.length > 1 ? 'Orders:' : 'Order No:'}</span>
+                          <span className="font-semibold">
+                            {selectedTableOrders.length > 1
+                              ? `${selectedTableOrders.length} orders combined`
+                              : selectedOrder.orderNumber}
+                          </span>
                         </div>
                       )}
                     </div>
@@ -238,16 +427,54 @@ const BillingDashboard = () => {
                           <span>Tax:</span>
                           <span>₹{currentTax.toFixed(2)}</span>
                         </div>
-                        <div className="flex justify-between text-sm">
-                          <span>Discount:</span>
-                          <span>₹{currentDiscount.toFixed(2)}</span>
-                        </div>
+                        {currentDiscount > 0 && (
+                          <div className="flex justify-between text-sm">
+                            <span>Discount{currentDiscountPercentage > 0 ? ` (${currentDiscountPercentage.toFixed(2)}%)` : ''}:</span>
+                            <span>-₹{currentDiscount.toFixed(2)}</span>
+                          </div>
+                        )}
+                        {currentExtraCharges > 0 && (
+                          <div className="flex justify-between text-sm">
+                            <span>Extra Charges:</span>
+                            <span>+₹{currentExtraCharges.toFixed(2)}</span>
+                          </div>
+                        )}
                         <div className="flex justify-between text-lg font-bold">
                           <span>Total:</span>
                           <span className="text-orange-600">₹{currentTotal.toFixed(2)}</span>
                         </div>
                       </div>
                     </div>
+
+                    {!selectedBill && selectedOrder && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Discount (%)</label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            value={discountPercentage}
+                            onChange={(e) => setDiscountPercentage(e.target.value)}
+                            className="input-field"
+                            placeholder="e.g. 10"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Extra Charges (₹)</label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={extraCharges}
+                            onChange={(e) => setExtraCharges(e.target.value)}
+                            className="input-field"
+                            placeholder="e.g. 20"
+                          />
+                        </div>
+                      </div>
+                    )}
 
                     <div className="space-y-2">
                       <Button
@@ -257,6 +484,15 @@ const BillingDashboard = () => {
                         disabled={!selectedOrder || actionLoading}
                       >
                         {selectedBill ? 'Regenerate Bill' : 'Generate Bill'}
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        className="w-full no-print"
+                        icon={<Printer size={18} />}
+                        onClick={printBill}
+                        disabled={!selectedBill || actionLoading}
+                      >
+                        Print Bill
                       </Button>
                       <Button
                         variant="success"
@@ -331,6 +567,16 @@ const BillingDashboard = () => {
           </div>
         </div>
       </Modal>
+
+      {/* Hidden Printable Bill */}
+      {selectedBill && (
+        <PrintableBill
+          bill={selectedBill}
+          table={selectedTable}
+          orders={selectedTableOrders}
+          restaurantInfo={restaurantInfo}
+        />
+      )}
     </div>
   );
 };
