@@ -27,6 +27,11 @@ const PrintableBill = ({ bill, table, orders, restaurantInfo }) => {
     timeStyle: 'short'
   });
 
+  // Settings can use snake_case or camelCase depending on backend response
+  const settings = restaurantInfo?.settings || {};
+  const taxPercentage = settings.taxPercentage ?? settings.tax_percentage ?? 5;
+  const gstNumber = restaurantInfo?.gstNumber || settings.gstNumber || settings.gst_number || null;
+
   return (
     <div className="printable-bill">
       {/* Restaurant Header */}
@@ -34,10 +39,7 @@ const PrintableBill = ({ bill, table, orders, restaurantInfo }) => {
         <h1 className="restaurant-name">{restaurantInfo?.name || 'Restaurant HMS'}</h1>
         {restaurantInfo?.address && <p className="restaurant-address">{restaurantInfo.address}</p>}
         {restaurantInfo?.phone && <p className="restaurant-contact">{restaurantInfo.phone}</p>}
-        {restaurantInfo?.email && <p className="restaurant-contact">{restaurantInfo.email}</p>}
-        {(restaurantInfo?.settings?.gstNumber || restaurantInfo?.gstNumber) && (
-          <p className="restaurant-gst"><strong>GSTIN: {restaurantInfo?.settings?.gstNumber || restaurantInfo?.gstNumber}</strong></p>
-        )}
+        {gstNumber && <p className="restaurant-gst">GSTIN: {gstNumber}</p>}
       </div>
 
       <div className="bill-divider"></div>
@@ -48,15 +50,36 @@ const PrintableBill = ({ bill, table, orders, restaurantInfo }) => {
           <span>Bill#:</span>
           <strong>{bill?.billNumber || 'N/A'}</strong>
         </div>
-        <div className="bill-info-row">
-          <span>{table?.tableNumber?.toString().startsWith('Parcel') ? 'Order Type:' : 'Table:'}</span>
-          <strong>{table?.tableNumber?.toString().startsWith('Parcel') ? 'Parcel' : (table?.tableNumber || 'N/A')}</strong>
-        </div>
-        {table?.tableNumber?.toString().startsWith('Parcel') && table?.tableNumber?.toString().includes('–') && (
+        {table ? (
           <div className="bill-info-row">
-            <span>Customer:</span>
-            <strong>{table.tableNumber.toString().split('–')[1]?.trim()}</strong>
+            <span>Table:</span>
+            <strong>{table.tableNumber}</strong>
           </div>
+        ) : (
+          <>
+            <div className="bill-info-row">
+              <span>Type:</span>
+              <strong>Parcel</strong>
+            </div>
+            {orders?.[0]?.customerName && (
+              <div className="bill-info-row">
+                <span>Customer:</span>
+                <strong>{orders[0].customerName}</strong>
+              </div>
+            )}
+            {orders?.[0]?.customerPhone && (
+              <div className="bill-info-row">
+                <span>Phone:</span>
+                <strong>{orders[0].customerPhone}</strong>
+              </div>
+            )}
+            {orders?.[0]?.orderNumber && (
+              <div className="bill-info-row">
+                <span>Order#:</span>
+                <strong>{orders[0].orderNumber}</strong>
+              </div>
+            )}
+          </>
         )}
         <div className="bill-info-row">
           <span>Date:</span>
@@ -74,16 +97,7 @@ const PrintableBill = ({ bill, table, orders, restaurantInfo }) => {
               <span className="item-name">{item.menuItem?.name || 'Item'}</span>
               <span className="item-qty">x{item.quantity}</span>
             </div>
-            <div className="item-price-line">
-              <span className="item-unit-price">
-                ₹{Number(
-                  item.unitPrice ||
-                  item.menuItem?.price ||
-                  (Number(item.quantity) > 0 ? Number(item.subtotal || 0) / Number(item.quantity) : 0)
-                ).toFixed(2)} each
-              </span>
-              <span className="item-amount">₹{Number(item.subtotal).toFixed(2)}</span>
-            </div>
+            <div className="item-amount">₹{Number(item.subtotal).toFixed(2)}</div>
           </div>
         ))}
       </div>
@@ -97,21 +111,19 @@ const PrintableBill = ({ bill, table, orders, restaurantInfo }) => {
           <span>₹{Number(bill?.subtotal || 0).toFixed(2)}</span>
         </div>
         <div className="bill-total-row">
-          <span>Tax ({restaurantInfo?.settings?.taxPercentage ?? restaurantInfo?.taxRate ?? restaurantInfo?.settings?.tax_percentage ?? 5}%):</span>
+          <span>Tax ({taxPercentage}%):</span>
           <span>₹{Number(bill?.taxAmount || 0).toFixed(2)}</span>
         </div>
         {bill?.discountAmount > 0 && (
           <div className="bill-total-row">
-            <span>
-              Discount{Number(bill?.discountPercentage || 0) > 0 ? ` (${Number(bill.discountPercentage).toFixed(2)}%)` : ''}:
-            </span>
+            <span>Discount{Number(bill?.discountPercentage || 0) > 0 ? ` (${Number(bill.discountPercentage).toFixed(1)}%)` : ''}:</span>
             <span>-₹{Number(bill.discountAmount).toFixed(2)}</span>
           </div>
         )}
         {Number(bill?.extraCharges || 0) > 0 && (
           <div className="bill-total-row">
-            <span>Packaging:</span>
-            <span>+₹{Number(bill.extraCharges).toFixed(2)}</span>
+            <span>{table ? 'Extra Charges' : 'Packaging'}:</span>
+            <span>₹{Number(bill.extraCharges).toFixed(2)}</span>
           </div>
         )}
         <div className="bill-total-row bill-grand-total">

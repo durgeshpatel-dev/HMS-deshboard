@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import Header from '../components/layout/Header';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
@@ -27,7 +27,6 @@ const BillingDashboard = () => {
   const [discountPercentage, setDiscountPercentage] = useState('0');
   const [extraCharges, setExtraCharges] = useState('0');
   const [restaurantInfo, setRestaurantInfo] = useState(null);
-  const lastBillingToastRef = useRef({ key: '', ts: 0 });
 
   const loadData = useCallback(async () => {
     try {
@@ -84,12 +83,6 @@ const BillingDashboard = () => {
   // Billing request notification from waiter
   useSocket('billing:request', useCallback((data) => {
     silentRefresh();
-    const key = `${data?.orderId || ''}-${data?.tableId || ''}`;
-    const now = Date.now();
-    if (lastBillingToastRef.current.key === key && now - lastBillingToastRef.current.ts < 8000) {
-      return;
-    }
-    lastBillingToastRef.current = { key, ts: now };
     toast.success(`🔔 Table ${data?.tableLabel || data?.tableId || '?'} - ${data?.waiterName || 'Waiter'} requests billing!`);
   }, [silentRefresh]));
 
@@ -135,65 +128,18 @@ const BillingDashboard = () => {
 
     try {
       setActionLoading(true);
-      const discountPctNum = Number(discountPercentage || 0);
-      const extraChargesNum = Number(extraCharges || 0);
-
-      if (!Number.isFinite(discountPctNum) || discountPctNum < 0 || discountPctNum > 100) {
-        toast.error('Discount must be between 0% and 100%');
-        setActionLoading(false);
-        return;
-      }
-
-      if (!Number.isFinite(extraChargesNum) || extraChargesNum < 0) {
-        toast.error('Extra charges must be 0 or more');
-        setActionLoading(false);
-        return;
-      }
-
+      const discount = Number(discountPercentage || 0);
+      const extra = Number(extraCharges || 0);
       const payload = {};
-      if (discountPctNum > 0) {
-        const computedDiscountAmount = (combinedSubtotal * discountPctNum) / 100;
-        payload.discountPercentage = discountPctNum;
-        payload.discountAmount = Number.isFinite(computedDiscountAmount) ? computedDiscountAmount : 0;
-      }
-      if (extraChargesNum > 0) payload.extraCharges = extraChargesNum;
-
-      let billRes;
-      try {
-        billRes = await BillService.generateBill(selectedOrder.id, payload);
-      } catch (firstError) {
-        const details = firstError?.response?.data?.errors;
-        const message = firstError?.response?.data?.message || '';
-        const detailText = Array.isArray(details)
-          ? details.map((d) => `${d?.path || ''} ${d?.message || ''}`.trim()).join(' | ')
-          : '';
-
-        const needsLegacyRetry =
-          firstError?.response?.status === 400 &&
-          /(discountPercentage|extraCharges|Validation failed|Unknown argument)/i.test(`${message} ${detailText}`);
-
-        if (!needsLegacyRetry) {
-          throw firstError;
-        }
-
-        const legacyPayload = {};
-        const legacyDiscountAmount = (combinedSubtotal * discountPctNum) / 100;
-        if (Number.isFinite(legacyDiscountAmount) && legacyDiscountAmount > 0) {
-          legacyPayload.discountAmount = legacyDiscountAmount;
-        }
-
-        billRes = await BillService.generateBill(selectedOrder.id, legacyPayload);
-      }
+      if (Number.isFinite(discount) && discount > 0) payload.discountPercentage = discount;
+      if (Number.isFinite(extra) && extra > 0) payload.extraCharges = extra;
+      const billRes = await BillService.generateBill(selectedOrder.id, payload);
       setSelectedBill(billRes?.data || null);
       await loadData();
       toast.success('Bill generated successfully');
     } catch (error) {
       console.error('Failed to generate bill:', error);
-      const details = error?.response?.data?.errors;
-      const firstDetail = Array.isArray(details) && details.length > 0
-        ? details[0]?.message
-        : null;
-      toast.error(firstDetail || error?.response?.data?.message || 'Failed to generate bill');
+      toast.error(error?.response?.data?.message || 'Failed to generate bill');
     } finally {
       setActionLoading(false);
     }
@@ -428,15 +374,15 @@ const BillingDashboard = () => {
                           <span>₹{currentTax.toFixed(2)}</span>
                         </div>
                         {currentDiscount > 0 && (
-                          <div className="flex justify-between text-sm">
-                            <span>Discount{currentDiscountPercentage > 0 ? ` (${currentDiscountPercentage.toFixed(2)}%)` : ''}:</span>
+                          <div className="flex justify-between text-sm text-green-600">
+                            <span>Discount{currentDiscountPercentage > 0 ? ` (${currentDiscountPercentage.toFixed(1)}%)` : ''}:</span>
                             <span>-₹{currentDiscount.toFixed(2)}</span>
                           </div>
                         )}
                         {currentExtraCharges > 0 && (
                           <div className="flex justify-between text-sm">
                             <span>Extra Charges:</span>
-                            <span>+₹{currentExtraCharges.toFixed(2)}</span>
+                            <span>₹{currentExtraCharges.toFixed(2)}</span>
                           </div>
                         )}
                         <div className="flex justify-between text-lg font-bold">
@@ -446,32 +392,36 @@ const BillingDashboard = () => {
                       </div>
                     </div>
 
+                    {/* Discount & Extra Charges inputs (before bill is generated) */}
                     {!selectedBill && selectedOrder && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Discount (%)</label>
-                          <input
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="0.01"
-                            value={discountPercentage}
-                            onChange={(e) => setDiscountPercentage(e.target.value)}
-                            className="input-field"
-                            placeholder="e.g. 10"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Extra Charges (₹)</label>
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={extraCharges}
-                            onChange={(e) => setExtraCharges(e.target.value)}
-                            className="input-field"
-                            placeholder="e.g. 20"
-                          />
+                      <div className="border-t pt-4 space-y-3">
+                        <h4 className="text-sm font-semibold text-gray-700">Bill Options</h4>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Discount (%)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="0.1"
+                              value={discountPercentage}
+                              onChange={(e) => setDiscountPercentage(e.target.value)}
+                              className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-400"
+                              placeholder="0"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Extra Charges (₹)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={extraCharges}
+                              onChange={(e) => setExtraCharges(e.target.value)}
+                              className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-400"
+                              placeholder="0"
+                            />
+                          </div>
                         </div>
                       </div>
                     )}

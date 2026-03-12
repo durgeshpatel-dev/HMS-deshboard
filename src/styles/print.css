@@ -1,105 +1,89 @@
 /* Print Styles for HMS Dashboard */
 
-/* Hide elements during print */
-@media print {
-  /* Hide navigation, headers, buttons, and UI elements */
-  header,
-  nav,
-  .no-print,
-  button:not(.keep-for-print),
-  .toast-container,
-  aside,
-  .sidebar,
-  footer,
-  input,
-  select {
-    display: none !important;
-  }
+/* ================================================================
+   SCREEN STYLES (hidden on screen, shown during print)
+   ================================================================ */
 
-  /* Reset page styles */
-  body {
-    margin: 0;
-    padding: 0;
-    background: white !important;
-    color: black !important;
-  }
-
-  /* Show only printable content */
-  .printable-bill,
-  .printable-report {
-    display: block !important;
-    visibility: visible !important;
-  }
-
-  /* Page break control */
-  .page-break {
-    page-break-before: always;
-  }
-
-  .no-page-break {
-    page-break-inside: avoid;
-  }
-
-  /* Ensure links show their URLs */
-  a[href]:after {
-    content: none !important;
-  }
-
-  /* Reports page styling */
-  .min-h-screen {
-    min-height: auto !important;
-  }
-
-  /* Make tables print-friendly */
-  table {
-    page-break-inside: auto;
-  }
-
-  tr {
-    page-break-inside: avoid;
-    page-break-after: auto;
-  }
-
-  /* Charts - hide recharts, they don't print well */
-  .recharts-wrapper,
-  .recharts-container {
-    display: none !important;
-  }
-}
-
-/* Bill/Invoice Print Styles */
+/* Hidden on screen */
 .printable-bill {
-  display: none; /* Hidden on screen */
+  display: none;
   font-family: 'Courier New', monospace;
-  max-width: 58mm; /* Thermal printer width - 58mm standard */
-  margin: 0 auto;
-  padding: 2mm;
   font-size: 9pt;
   line-height: 1.3;
   color: black;
   background: white;
 }
 
+.printable-report {
+  display: none;
+}
+
+/* ================================================================
+   PRINT MEDIA RULES — single @media print block
+   ================================================================ */
 @media print {
-  /* Thermal printer page setup */
+
+  /* ---- Thermal receipt page setup (58mm) ---- */
   @page {
-    size: 58mm auto; /* Width 58mm, height auto */
+    size: 58mm auto;
     margin: 0;
   }
 
+  /* ---- Reset body ---- */
   body {
-    margin: 0;
-    padding: 0;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    color: black !important;
+    width: 100% !important;
   }
 
-  .printable-bill {
+  /* ---- HIDE EVERYTHING, then show only printable elements ---- */
+  /* This uses the visibility trick:
+     1. Hide all elements via visibility:hidden
+     2. Make .printable-bill and children visible
+     3. Position .printable-bill absolutely at top-left
+     This approach works regardless of DOM nesting depth. */
+  body * {
+    visibility: hidden !important;
+  }
+
+  .printable-bill,
+  .printable-bill * {
+    visibility: visible !important;
+  }
+
+  .printable-report,
+  .printable-report * {
+    visibility: visible !important;
+  }
+
+  /* Reset layout containers so nothing offsets the printable element */
+  #root,
+  #root > div,
+  main {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    overflow: visible !important;
     display: block !important;
-    max-width: 100%;
-    min-height: 140mm; /* Minimum 14 cm */
-    padding: 5mm;
-    margin: 0;
-    display: flex;
+    position: static !important;
+  }
+
+  /* ---- PRINTABLE BILL (thermal receipt) ---- */
+  .printable-bill {
+    display: flex !important;
     flex-direction: column;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 140mm;
+    padding: 5mm !important;
+    margin: 0 !important;
+    z-index: 99999 !important;
+    background: white !important;
   }
 
   /* Bill Header */
@@ -145,12 +129,12 @@
     line-height: 1.4;
   }
 
-  /* Items List - Simplified for narrow format */
+  /* Items List */
   .items-list {
     margin: 10px 0;
     padding: 6px 0;
-    flex: 1; /* Take up available space */
-    min-height: 40mm; /* Minimum space for items */
+    flex: 1;
+    min-height: 40mm;
   }
 
   .item-row {
@@ -230,7 +214,7 @@
   /* Bill Footer */
   .bill-footer {
     text-align: center;
-    margin-top: auto; /* Push to bottom */
+    margin-top: auto;
     padding-top: 12px;
     border-top: 1px dashed #000;
     font-size: 9pt;
@@ -241,22 +225,19 @@
     margin: 3px 0;
     line-height: 1.4;
   }
-}
 
-/* A4 Report Print Styles */
-.printable-report {
-  display: none; /* Hidden on screen */
-}
-
-@media print {
+  /* ---- PRINTABLE REPORT (A4) ---- */
+  /* Note: @page rules cannot be scoped to elements in CSS.
+     When printing reports, the thermal @page size still applies.
+     The report content will still render correctly on the default page. */
   .printable-report {
     display: block !important;
-  }
-
-  /* Report uses standard A4 layout */
-  @page {
-    size: A4 portrait;
-    margin: 20mm;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    z-index: 99999 !important;
+    background: white !important;
   }
 
   .report-header {
@@ -334,8 +315,10 @@
     margin-top: 10px;
   }
 
-  /* Charts should be hidden in print or replaced with tables */
-  .recharts-wrapper {
+  /* Hide charts in print */
+  .recharts-wrapper,
+  .recharts-container {
     display: none !important;
   }
-}
+
+} /* end @media print */

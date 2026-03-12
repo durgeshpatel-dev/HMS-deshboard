@@ -25,7 +25,7 @@ const Modal = ({ isOpen, onClose, title, children, size = 'md' }) => {
   };
   
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
+    <div className="fixed inset-0 z-50 overflow-y-auto no-print">
       <div className="flex min-h-screen items-center justify-center p-4">
         {/* Backdrop */}
         <div 

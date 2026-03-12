@@ -18,10 +18,9 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import OrderService from '../services/order.service';
 import AnalyticsService from '../services/analytics.service';
+import { getRangeLabel, getDateRangeBounds, exportToCSV, exportToPDF } from './reports/reportExports';
 
 const Reports = () => {
   const [orders, setOrders] = useState([]);
@@ -29,7 +28,7 @@ const Reports = () => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [dateRange, setDateRange] = useState('today');
   
-  // New analytics state
+  // Analytics state
   const [chartData, setChartData] = useState([]);
   const [topItems, setTopItems] = useState([]);
   const [paymentBreakdown, setPaymentBreakdown] = useState([]);
@@ -53,50 +52,8 @@ const Reports = () => {
   const fetchAnalytics = async () => {
     try {
       setAnalyticsLoading(true);
-      const now = new Date();
-      let startDate, endDate;
+      const { from: startDate, to: endDate } = getDateRangeBounds(dateRange, selectedDate);
 
-      // Calculate date range
-      switch (dateRange) {
-        case 'today':
-          startDate = new Date(now);
-          startDate.setHours(0, 0, 0, 0);
-          endDate = new Date(now);
-          endDate.setHours(23, 59, 59, 999);
-          break;
-        case 'yesterday':
-          startDate = new Date(now);
-          startDate.setDate(startDate.getDate() - 1);
-          startDate.setHours(0, 0, 0, 0);
-          endDate = new Date(startDate);
-          endDate.setHours(23, 59, 59, 999);
-          break;
-        case 'last7':
-          startDate = new Date(now);
-          startDate.setDate(startDate.getDate() - 7);
-          startDate.setHours(0, 0, 0, 0);
-          endDate = new Date(now);
-          endDate.setHours(23, 59, 59, 999);
-          break;
-        case 'last30':
-          startDate = new Date(now);
-          startDate.setDate(startDate.getDate() - 30);
-          startDate.setHours(0, 0, 0, 0);
-          endDate = new Date(now);
-          endDate.setHours(23, 59, 59, 999);
-          break;
-        case 'custom':
-          startDate = new Date(selectedDate);
-          startDate.setHours(0, 0, 0, 0);
-          endDate = new Date(selectedDate);
-          endDate.setHours(23, 59, 59, 999);
-          break;
-        default:
-          startDate = undefined;
-          endDate = undefined;
-      }
-
-      // Fetch all analytics
       const [chartRes, itemsRes, paymentRes, waiterRes] = await Promise.all([
         AnalyticsService.getSalesAnalytics(startDate, endDate, 'day'),
         AnalyticsService.getTopItems(10, startDate, endDate),
@@ -115,13 +72,8 @@ const Reports = () => {
     }
   };
 
-  useEffect(() => {
-    void fetchOrders();
-  }, []);
-
-  useEffect(() => {
-    void fetchAnalytics();
-  }, [dateRange, selectedDate]);
+  useEffect(() => { void fetchOrders(); }, []);
+  useEffect(() => { void fetchAnalytics(); }, [dateRange, selectedDate]);
 
   const completedOrders = useMemo(
     () => orders.filter((order) => order.status === 'completed'),
@@ -131,7 +83,6 @@ const Reports = () => {
   const filteredOrders = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-
     const selected = new Date(selectedDate);
     selected.setHours(0, 0, 0, 0);
 
@@ -140,27 +91,12 @@ const Reports = () => {
       created.setHours(0, 0, 0, 0);
 
       switch (dateRange) {
-        case 'today':
-          return created.getTime() === today.getTime();
-        case 'yesterday': {
-          const yesterday = new Date(today);
-          yesterday.setDate(yesterday.getDate() - 1);
-          return created.getTime() === yesterday.getTime();
-        }
-        case 'last7': {
-          const last7 = new Date(today);
-          last7.setDate(last7.getDate() - 7);
-          return created >= last7 && created <= today;
-        }
-        case 'last30': {
-          const last30 = new Date(today);
-          last30.setDate(last30.getDate() - 30);
-          return created >= last30 && created <= today;
-        }
-        case 'custom':
-          return created.getTime() === selected.getTime();
-        default:
-          return true;
+        case 'today': return created.getTime() === today.getTime();
+        case 'yesterday': { const y = new Date(today); y.setDate(y.getDate() - 1); return created.getTime() === y.getTime(); }
+        case 'last7': { const d = new Date(today); d.setDate(d.getDate() - 7); return created >= d && created <= today; }
+        case 'last30': { const d = new Date(today); d.setDate(d.getDate() - 30); return created >= d && created <= today; }
+        case 'custom': return created.getTime() === selected.getTime();
+        default: return true;
       }
     });
   }, [completedOrders, dateRange, selectedDate]);
@@ -175,351 +111,13 @@ const Reports = () => {
 
   const handleDateRangeChange = (range) => {
     setDateRange(range);
-    if (range !== 'custom') {
-      setSelectedDate(new Date().toISOString().split('T')[0]);
-    }
+    if (range !== 'custom') setSelectedDate(new Date().toISOString().split('T')[0]);
   };
 
-  const getRangeLabel = () => {
-    switch (dateRange) {
-      case 'today':
-        return 'Today';
-      case 'yesterday':
-        return 'Yesterday';
-      case 'last7':
-        return 'Last 7 Days';
-      case 'last30':
-        return 'Last 30 Days';
-      case 'custom':
-        return new Date(selectedDate).toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric',
-        });
-      default:
-        return 'All Time';
-    }
-  };
+  const rangeLabel = getRangeLabel(dateRange, selectedDate);
 
-  const getDateRangeBounds = () => {
-    const now = new Date();
-    const from = new Date(now);
-    const to = new Date(now);
-
-    switch (dateRange) {
-      case 'today':
-        from.setHours(0, 0, 0, 0);
-        to.setHours(23, 59, 59, 999);
-        return { from, to };
-      case 'yesterday':
-        from.setDate(from.getDate() - 1);
-        from.setHours(0, 0, 0, 0);
-        to.setTime(from.getTime());
-        to.setHours(23, 59, 59, 999);
-        return { from, to };
-      case 'last7':
-        from.setDate(from.getDate() - 7);
-        from.setHours(0, 0, 0, 0);
-        to.setHours(23, 59, 59, 999);
-        return { from, to };
-      case 'last30':
-        from.setDate(from.getDate() - 30);
-        from.setHours(0, 0, 0, 0);
-        to.setHours(23, 59, 59, 999);
-        return { from, to };
-      case 'custom':
-        from.setTime(new Date(selectedDate).getTime());
-        from.setHours(0, 0, 0, 0);
-        to.setTime(new Date(selectedDate).getTime());
-        to.setHours(23, 59, 59, 999);
-        return { from, to };
-      default:
-        return { from: null, to: null };
-    }
-  };
-
-  const getExportData = () => {
-    const formatMoney = (value) => Number(value || 0).toFixed(2);
-    const { from, to } = getDateRangeBounds();
-
-    const fallbackTopItemsMap = new Map();
-    filteredOrders.forEach((order) => {
-      (order.items || []).forEach((item) => {
-        const itemName = item?.menuItem?.name || `Item #${item?.menuItemId || 'Unknown'}`;
-        const quantity = Number(item?.quantity || 0);
-        const subtotal = Number(item?.subtotal || 0);
-
-        if (!fallbackTopItemsMap.has(itemName)) {
-          fallbackTopItemsMap.set(itemName, {
-            itemName,
-            quantity: 0,
-            revenue: 0,
-            unitPrice: Number(item?.unitPrice || 0),
-          });
-        }
-
-        const current = fallbackTopItemsMap.get(itemName);
-        current.quantity += quantity;
-        current.revenue += subtotal;
-      });
-    });
-
-    const fallbackTopItems = Array.from(fallbackTopItemsMap.values())
-      .sort((a, b) => b.quantity - a.quantity)
-      .slice(0, 10);
-
-    const exportTopItems = topItems.length > 0 ? topItems : fallbackTopItems;
-    const exportPaymentBreakdown = paymentBreakdown.length > 0
-      ? paymentBreakdown
-      : [{ method: 'N/A', count: 0, total: 0 }];
-
-    const fallbackSalesTrendMap = new Map();
-    filteredOrders.forEach((order) => {
-      const dateKey = new Date(order.createdAt).toISOString().split('T')[0];
-      if (!fallbackSalesTrendMap.has(dateKey)) {
-        fallbackSalesTrendMap.set(dateKey, { date: dateKey, orders: 0, items: 0, sales: 0 });
-      }
-      const current = fallbackSalesTrendMap.get(dateKey);
-      current.orders += 1;
-      current.items += Number(order.items?.length || 0);
-      current.sales += Number(order.totalAmount || 0);
-    });
-
-    const fallbackSalesTrend = Array.from(fallbackSalesTrendMap.values())
-      .sort((a, b) => a.date.localeCompare(b.date));
-
-    const exportSalesTrend = chartData.length > 0
-      ? chartData
-      : (fallbackSalesTrend.length > 0
-          ? fallbackSalesTrend
-          : [{ date: getRangeLabel(), orders: stats.count, items: stats.totalItems, sales: stats.total }]);
-
-    return {
-      formatMoney,
-      from,
-      to,
-      exportTopItems,
-      exportPaymentBreakdown,
-      exportSalesTrend,
-    };
-  };
-
-  // Export functions
-  const exportToCSV = () => {
-    const csvContent = generateCSVContent();
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `sales-report-${getRangeLabel().replace(/\s+/g, '-')}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const generateCSVContent = () => {
-    const escapeCsv = (value) => {
-      if (value === null || value === undefined) return '';
-      const str = String(value);
-      return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
-    };
-
-    const {
-      formatMoney,
-      from,
-      to,
-      exportTopItems,
-      exportPaymentBreakdown,
-      exportSalesTrend,
-    } = getExportData();
-
-    const lines = [];
-
-    lines.push('HMS SALES REPORT');
-    lines.push(`Generated At,${escapeCsv(new Date().toLocaleString())}`);
-    lines.push(`Range Label,${escapeCsv(getRangeLabel())}`);
-    lines.push(`Date From,${escapeCsv(from ? from.toISOString() : 'N/A')}`);
-    lines.push(`Date To,${escapeCsv(to ? to.toISOString() : 'N/A')}`);
-    lines.push('');
-
-    lines.push('SUMMARY');
-    lines.push('Metric,Value');
-    lines.push(`Total Revenue (INR),${formatMoney(stats.total)}`);
-    lines.push(`Total Orders,${stats.count}`);
-    lines.push(`Average Order Value (INR),${formatMoney(stats.avgOrder)}`);
-    lines.push(`Total Items Sold,${stats.totalItems}`);
-    lines.push('');
-
-    lines.push('SALES TREND');
-    lines.push('Date,Orders,Items,Revenue (INR)');
-    exportSalesTrend.forEach((row) => {
-      lines.push([
-        escapeCsv(row.date),
-        Number(row.orders || 0),
-        Number(row.items || 0),
-        formatMoney(row.sales),
-      ].join(','));
-    });
-    lines.push('');
-
-    lines.push('TOP SELLING ITEMS');
-    lines.push('Item Name,Quantity,Revenue (INR),Unit Price (INR)');
-    exportTopItems.forEach((item) => {
-      lines.push([
-        escapeCsv(item.itemName),
-        Number(item.quantity || 0),
-        formatMoney(item.revenue),
-        formatMoney(item.unitPrice),
-      ].join(','));
-    });
-    lines.push('');
-
-    lines.push('PAYMENT METHOD BREAKDOWN');
-    lines.push('Method,Transactions,Total (INR)');
-    exportPaymentBreakdown.forEach((payment) => {
-      lines.push([
-        escapeCsv(payment.method || 'Unknown'),
-        Number(payment.count || 0),
-        formatMoney(payment.total),
-      ].join(','));
-    });
-    lines.push('');
-
-    lines.push('COMPLETED ORDER DETAILS');
-    lines.push('Order Number,Table/Type,Created At,Item Lines,Order Total (INR),Status');
-    if (filteredOrders.length === 0) {
-      lines.push('No completed orders found for selected range,,,,,');
-    } else {
-      filteredOrders.forEach((order) => {
-        lines.push([
-          escapeCsv(order.orderNumber),
-          escapeCsv(order.orderType === 'parcel' ? 'Parcel' : (order.table?.tableNumber || '-')),
-          escapeCsv(new Date(order.createdAt).toLocaleString()),
-          Number(order.items?.length || 0),
-          formatMoney(order.totalAmount),
-          escapeCsv(order.status || 'completed'),
-        ].join(','));
-      });
-    }
-
-    return `\uFEFF${lines.join('\n')}`;
-  };
-
-  const exportToPDF = () => {
-    const {
-      formatMoney,
-      from,
-      to,
-      exportTopItems,
-      exportPaymentBreakdown,
-      exportSalesTrend,
-    } = getExportData();
-
-    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-    const pageWidth = doc.internal.pageSize.getWidth();
-
-    doc.setFontSize(18);
-    doc.text('HMS Sales Report', 14, 14);
-    doc.setFontSize(10);
-    doc.text(`Range: ${getRangeLabel()}`, 14, 21);
-    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 26);
-    doc.text(`From: ${from ? from.toISOString() : 'N/A'}`, 14, 31);
-    doc.text(`To: ${to ? to.toISOString() : 'N/A'}`, 14, 36);
-
-    autoTable(doc, {
-      startY: 42,
-      head: [['Metric', 'Value']],
-      body: [
-        ['Total Revenue (INR)', formatMoney(stats.total)],
-        ['Total Orders', String(stats.count)],
-        ['Average Order Value (INR)', formatMoney(stats.avgOrder)],
-        ['Total Items Sold', String(stats.totalItems)],
-      ],
-      theme: 'grid',
-      headStyles: { fillColor: [249, 115, 22] },
-      styles: { fontSize: 9, cellPadding: 2.5 },
-      columnStyles: { 0: { cellWidth: 70 }, 1: { cellWidth: 45 } },
-    });
-
-    let currentY = doc.lastAutoTable.finalY + 8;
-
-    autoTable(doc, {
-      startY: currentY,
-      head: [['Date', 'Orders', 'Items', 'Revenue (INR)']],
-      body: exportSalesTrend.map((row) => [
-        row.date,
-        String(Number(row.orders || 0)),
-        String(Number(row.items || 0)),
-        formatMoney(row.sales),
-      ]),
-      theme: 'striped',
-      headStyles: { fillColor: [59, 130, 246] },
-      styles: { fontSize: 8.5, cellPadding: 2.3 },
-      margin: { right: pageWidth / 2 + 2 },
-    });
-
-    autoTable(doc, {
-      startY: currentY,
-      head: [['Method', 'Transactions', 'Total (INR)']],
-      body: exportPaymentBreakdown.map((payment) => [
-        payment.method || 'Unknown',
-        String(Number(payment.count || 0)),
-        formatMoney(payment.total),
-      ]),
-      theme: 'striped',
-      headStyles: { fillColor: [16, 185, 129] },
-      styles: { fontSize: 8.5, cellPadding: 2.3 },
-      margin: { left: pageWidth / 2 + 2 },
-    });
-
-    currentY = Math.max(doc.lastAutoTable.finalY, currentY) + 8;
-
-    autoTable(doc, {
-      startY: currentY,
-      head: [['Item Name', 'Qty', 'Revenue (INR)', 'Unit Price (INR)']],
-      body: exportTopItems.map((item) => [
-        item.itemName,
-        String(Number(item.quantity || 0)),
-        formatMoney(item.revenue),
-        formatMoney(item.unitPrice),
-      ]),
-      theme: 'striped',
-      headStyles: { fillColor: [139, 92, 246] },
-      styles: { fontSize: 8.2, cellPadding: 2.2 },
-      columnStyles: { 0: { cellWidth: 90 } },
-    });
-
-    currentY = doc.lastAutoTable.finalY + 8;
-
-    autoTable(doc, {
-      startY: currentY,
-      head: [['Order Number', 'Table/Type', 'Created At', 'Item Lines', 'Order Total (INR)', 'Status']],
-      body: (filteredOrders.length === 0
-        ? [['No completed orders found for selected range', '', '', '', '', '']]
-        : filteredOrders.map((order) => [
-            order.orderNumber,
-            order.orderType === 'parcel' ? 'Parcel' : (order.table?.tableNumber || '-'),
-            new Date(order.createdAt).toLocaleString(),
-            String(Number(order.items?.length || 0)),
-            formatMoney(order.totalAmount),
-            order.status || 'completed',
-          ])),
-      theme: 'grid',
-      headStyles: { fillColor: [30, 41, 59] },
-      styles: { fontSize: 7.8, cellPadding: 2.1 },
-      columnStyles: {
-        0: { cellWidth: 34 },
-        1: { cellWidth: 24 },
-        2: { cellWidth: 44 },
-        3: { cellWidth: 18 },
-        4: { cellWidth: 28 },
-        5: { cellWidth: 20 },
-      },
-    });
-
-    doc.save(`sales-report-${getRangeLabel().replace(/\s+/g, '-')}.pdf`);
-  };
+  // Build context object for export utilities
+  const exportCtx = { stats, filteredOrders, chartData, topItems, paymentBreakdown, dateRange, selectedDate };
 
   return (
     <div className="min-h-screen">
@@ -563,10 +161,10 @@ const Reports = () => {
                 <Button variant="secondary" size="sm" icon={<Printer size={16} />} onClick={() => window.print()} className="no-print">
                   Print
                 </Button>
-                <Button variant="primary" size="sm" icon={<Download size={16} />} onClick={exportToCSV}>
+                <Button variant="primary" size="sm" icon={<Download size={16} />} onClick={() => exportToCSV(exportCtx)}>
                   Export CSV
                 </Button>
-                <Button variant="outline" size="sm" icon={<FileText size={16} />} onClick={exportToPDF}>
+                <Button variant="outline" size="sm" icon={<FileText size={16} />} onClick={() => exportToPDF(exportCtx)}>
                   Export PDF
                 </Button>
               </div>
@@ -581,7 +179,7 @@ const Reports = () => {
         ) : (
           <>
             <div className="mb-6">
-              <h3 className="text-xl font-bold text-gray-800 mb-4">Sales Summary - {getRangeLabel()}</h3>
+              <h3 className="text-xl font-bold text-gray-800 mb-4">Sales Summary - {rangeLabel}</h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <Card className="hover:shadow-lg transition-shadow">

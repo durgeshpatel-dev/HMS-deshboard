@@ -6,6 +6,7 @@ import Button from '../components/common/Button';
 import { Plus, Minus, Trash2, ShoppingCart, ArrowLeft, StickyNote } from 'lucide-react';
 import MenuService from '../services/menu.service';
 import OrderService from '../services/order.service';
+import SettingsService from '../services/settings.service';
 
 const CreateParcelOrder = () => {
   const navigate = useNavigate();
@@ -23,12 +24,19 @@ const CreateParcelOrder = () => {
   const [showNoteFor, setShowNoteFor] = useState(null); // itemId whose note input is open
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [taxPercentage, setTaxPercentage] = useState(5);
 
   const fetchMenu = async () => {
     try {
       setLoading(true);
-      const response = await MenuService.getItems();
-      setMenuItems(response?.data || []);
+      const [menuRes, settingsRes] = await Promise.all([
+        MenuService.getItems(),
+        SettingsService.getRestaurantSettings(),
+      ]);
+      setMenuItems(menuRes?.data || []);
+      const settings = settingsRes?.data?.settings || settingsRes?.data || {};
+      const tax = Number(settings?.taxPercentage ?? settings?.tax_percentage ?? 5);
+      setTaxPercentage(tax);
     } catch (error) {
       console.error('Failed to fetch menu items:', error);
       alert('Failed to load menu items');
@@ -88,7 +96,7 @@ const CreateParcelOrder = () => {
   };
 
   const calculateSubtotal = () => orderItems.reduce((sum, item) => sum + Number(item.price) * item.quantity, 0);
-  const calculateTax = () => calculateSubtotal() * 0.05;
+  const calculateTax = () => calculateSubtotal() * (taxPercentage / 100);
   const calculateTotal = () => calculateSubtotal() + calculateTax();
 
   const handleSubmit = async (e) => {
@@ -299,7 +307,7 @@ const CreateParcelOrder = () => {
                           <span className="font-semibold">₹{calculateSubtotal().toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">GST (5%):</span>
+                          <span className="text-gray-600">GST ({taxPercentage}%):</span>
                           <span className="font-semibold">₹{calculateTax().toFixed(2)}</span>
                         </div>
                         <div className="border-t pt-2 flex justify-between text-lg font-bold">
