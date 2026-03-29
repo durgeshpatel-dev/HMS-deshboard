@@ -88,6 +88,12 @@ const ManagerLogin = () => {
               </div>
             </div>
 
+            <div className="text-right">
+              <Link to="/forgot-password" className="text-sm text-orange-600 hover:text-orange-700 font-medium">
+                Forgot password?
+              </Link>
+            </div>
+
             {/* Submit Button */}
             <Button
               type="submit"

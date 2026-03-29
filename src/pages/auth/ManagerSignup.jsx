@@ -73,9 +73,8 @@ const ManagerSignup = () => {
         phone: formData.phone,
         address: formData.address,
       });
-      
-      // Redirect to pending approval page
-      navigate('/pending-approval');
+
+      navigate(`/verify-signup-otp?email=${encodeURIComponent(formData.email)}`);
     } catch (err) {
       setError(err.message || 'Signup failed. Please try again.');
     } finally {

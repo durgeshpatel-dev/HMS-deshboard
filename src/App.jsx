@@ -17,6 +17,9 @@ import KitchenDisplay from './pages/KitchenDisplay';
 import ManagerLogin from './pages/auth/ManagerLogin';
 import ManagerSignup from './pages/auth/ManagerSignup';
 import PendingApproval from './pages/auth/PendingApproval';
+import VerifySignupOtp from './pages/auth/VerifySignupOtp';
+import ForgotPassword from './pages/auth/ForgotPassword';
+import ResetPassword from './pages/auth/ResetPassword';
 
 function App() {
   return (
@@ -29,7 +32,10 @@ function App() {
               {/* Public Routes */}
               <Route path="/login" element={<ManagerLogin />} />
               <Route path="/signup" element={<ManagerSignup />} />
+              <Route path="/verify-signup-otp" element={<VerifySignupOtp />} />
               <Route path="/pending-approval" element={<PendingApproval />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
 
               {/* Protected Routes */}
               <Route

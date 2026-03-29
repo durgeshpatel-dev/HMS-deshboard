@@ -17,6 +17,10 @@ export const API_ENDPOINTS = {
   AUTH: {
     SIGNUP: '/auth/manager/signup',
     LOGIN: '/auth/manager/login',
+    VERIFY_SIGNUP_OTP: '/auth/manager/verify-signup-otp',
+    RESEND_SIGNUP_OTP: '/auth/manager/resend-signup-otp',
+    FORGOT_PASSWORD: '/auth/manager/forgot-password',
+    RESET_PASSWORD: '/auth/manager/reset-password',
     LOGOUT: '/auth/logout',
   },
 
