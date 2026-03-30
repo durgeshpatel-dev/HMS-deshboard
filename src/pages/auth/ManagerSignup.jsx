@@ -65,7 +65,7 @@ const ManagerSignup = () => {
     setLoading(true);
 
     try {
-      await signup({
+      const response = await signup({
         email: formData.email,
         password: formData.password,
         name: formData.name,
@@ -73,6 +73,12 @@ const ManagerSignup = () => {
         phone: formData.phone,
         address: formData.address,
       });
+
+      const otpSent = response?.data?.otpSent ?? response?.otpSent;
+      if (otpSent === false) {
+        setError('Account was created, but OTP email could not be sent. Please try again in a minute.');
+        return;
+      }
 
       navigate(`/verify-signup-otp?email=${encodeURIComponent(formData.email)}`);
     } catch (err) {
