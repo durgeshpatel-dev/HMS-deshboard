@@ -46,13 +46,46 @@ export default defineConfig(({ mode }) => ({
     // Code splitting strategy
     rollupOptions: {
       output: {
-        manualChunks: {
-          // Vendor chunks
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'ui-vendor': ['lucide-react'],
-          'chart-vendor': ['recharts'],
-          'network-vendor': ['axios', 'socket.io-client'],
-          'date-vendor': ['date-fns'],
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return null;
+
+          if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/react-router-dom/')) {
+            return 'react-vendor';
+          }
+
+          if (id.includes('/recharts/')) {
+            return 'chart-vendor';
+          }
+
+          if (id.includes('/axios/') || id.includes('/socket.io-client/')) {
+            return 'network-vendor';
+          }
+
+          if (id.includes('/date-fns/')) {
+            return 'date-vendor';
+          }
+
+          if (id.includes('/jspdf/') || id.includes('/jspdf-autotable/')) {
+            return 'pdf-vendor';
+          }
+
+          if (id.includes('/lucide-react/')) {
+            return 'ui-vendor';
+          }
+
+          const nm = id.split('node_modules/')[1] || '';
+          const parts = nm.split('/').filter(Boolean);
+          if (parts.length === 0) {
+            return 'misc-vendor';
+          }
+
+          let pkg = parts[0];
+          if (pkg.startsWith('@') && parts.length > 1) {
+            pkg = `${pkg}/${parts[1]}`;
+          }
+
+          const safePkg = pkg.replace('@', '').replace('/', '-');
+          return `vendor-${safePkg}`;
         },
         // Asset naming
         chunkFileNames: 'js/[name]-[hash].js',
