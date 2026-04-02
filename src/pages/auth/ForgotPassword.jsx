@@ -19,11 +19,12 @@ const ForgotPassword = () => {
     try {
       const result = await AuthService.requestPasswordReset(email);
       const sent = result?.data?.sent ?? result?.sent;
+      const message = result?.message;
 
       if (sent === false) {
-        setError('We could not send the reset link right now. Please try again in a minute.');
+        setError(message || 'We could not send the reset link right now. Please try again in a minute.');
       } else {
-        setInfo('If that email exists, a reset link has been sent.');
+        setInfo(message || 'If that email exists, a reset link has been sent.');
       }
     } catch (err) {
       setError(err.message || 'Failed to send reset link');

@@ -51,8 +51,15 @@ const VerifySignupOtp = () => {
 
     setResending(true);
     try {
-      await AuthService.resendSignupOtp(email);
-      setInfo("If eligible, a new OTP has been sent to your email.");
+      const result = await AuthService.resendSignupOtp(email);
+      const sent = result?.data?.sent ?? result?.sent;
+      const message = result?.message;
+
+      if (sent === false) {
+        setError(message || 'Could not resend OTP. Please sign up again.');
+      } else {
+        setInfo(message || 'If eligible, a new OTP has been sent to your email.');
+      }
     } catch (err) {
       setError(err.message || 'Failed to resend OTP');
     } finally {
