@@ -211,8 +211,8 @@ const BillingDashboard = () => {
       setShareLink({ url: link, expiresAt });
 
       const message = `Your bill is ready. Download here: ${link}\n(Link expires in 12 hours)`;
-      const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
-      window.open(waUrl, '_blank');
+      const waUrl = `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`;
+      window.open(waUrl, 'hms_whatsapp');
     } catch (error) {
       console.error('Failed to create share link:', error);
       toast.error(error?.response?.data?.message || 'Failed to create share link');
