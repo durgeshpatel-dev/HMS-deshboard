@@ -6,7 +6,7 @@ import Modal from '../components/common/Modal';
 import ToastContainer from '../components/common/Toast';
 import useToast from '../hooks/useToast';
 import { useSocket } from '../hooks/useSocket';
-import { User, CreditCard, Check, RefreshCw, Printer } from 'lucide-react';
+import { User, CreditCard, Check, RefreshCw, Printer, MessageCircle } from 'lucide-react';
 import apiClient from '../services/api';
 import OrderService from '../services/order.service';
 import BillService from '../services/bill.service';
@@ -27,6 +27,8 @@ const BillingDashboard = () => {
   const [discountPercentage, setDiscountPercentage] = useState('0');
   const [extraCharges, setExtraCharges] = useState('0');
   const [restaurantInfo, setRestaurantInfo] = useState(null);
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [shareLink, setShareLink] = useState(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -105,9 +107,13 @@ const BillingDashboard = () => {
     setSelectedTable(table);
     setDiscountPercentage('0');
     setExtraCharges('0');
+    setShareLink(null);
     const tableOrders = activeOrderByTable.get(table.id) || [];
     const primaryOrder = tableOrders[0] || null;
     setSelectedOrder(primaryOrder);
+
+    const tableCustomerPhone = tableOrders.find((o) => o.customerPhone)?.customerPhone || '';
+    setCustomerPhone(tableCustomerPhone);
 
     if (!primaryOrder) {
       setSelectedBill(null);
@@ -135,6 +141,7 @@ const BillingDashboard = () => {
       if (Number.isFinite(extra) && extra > 0) payload.extraCharges = extra;
       const billRes = await BillService.generateBill(selectedOrder.id, payload);
       setSelectedBill(billRes?.data || null);
+      setShareLink(null);
       await loadData();
       toast.success('Bill generated successfully');
     } catch (error) {
@@ -174,6 +181,42 @@ const BillingDashboard = () => {
       return;
     }
     window.print();
+  };
+
+  const normalizePhone = (phone) => String(phone || '').replace(/[^0-9]/g, '');
+
+  const handleSendWhatsApp = async () => {
+    if (!selectedBill) {
+      toast.error('Please generate a bill first');
+      return;
+    }
+    const phone = normalizePhone(customerPhone);
+    if (!phone) {
+      toast.error('Please enter customer WhatsApp number');
+      return;
+    }
+
+    try {
+      if (selectedOrder?.id && customerPhone && customerPhone !== selectedOrder.customerPhone) {
+        await OrderService.updateOrder(selectedOrder.id, { customerPhone });
+      }
+      const shareRes = await BillService.createShareLink(selectedBill.id);
+      const link = shareRes?.data?.url;
+      const expiresAt = shareRes?.data?.expiresAt;
+      if (!link) {
+        toast.error('Failed to generate share link');
+        return;
+      }
+
+      setShareLink({ url: link, expiresAt });
+
+      const message = `Your bill is ready. Download here: ${link}\n(Link expires in 12 hours)`;
+      const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+      window.open(waUrl, '_blank');
+    } catch (error) {
+      console.error('Failed to create share link:', error);
+      toast.error(error?.response?.data?.message || 'Failed to create share link');
+    }
   };
 
   const getTableStatusColor = (status) => {
@@ -391,6 +434,36 @@ const BillingDashboard = () => {
                         </div>
                       </div>
                     </div>
+
+                    {selectedBill && (
+                      <div className="border-t pt-4 space-y-3">
+                        <h4 className="text-sm font-semibold text-gray-700">Send Bill on WhatsApp</h4>
+                        <div className="space-y-2">
+                          <label className="block text-xs font-medium text-gray-600">Customer WhatsApp Number</label>
+                          <input
+                            type="tel"
+                            value={customerPhone}
+                            onChange={(e) => setCustomerPhone(e.target.value)}
+                            className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-400"
+                            placeholder="e.g. 919876543210"
+                          />
+                          {shareLink?.expiresAt && (
+                            <p className="text-xs text-gray-500">
+                              Link expires at: {new Date(shareLink.expiresAt).toLocaleString('en-IN')}
+                            </p>
+                          )}
+                        </div>
+                        <Button
+                          variant="secondary"
+                          className="w-full no-print"
+                          icon={<MessageCircle size={18} />}
+                          onClick={handleSendWhatsApp}
+                          disabled={!selectedBill || actionLoading}
+                        >
+                          Send on WhatsApp
+                        </Button>
+                      </div>
+                    )}
 
                     {/* Discount & Extra Charges inputs (before bill is generated) */}
                     {!selectedBill && selectedOrder && (

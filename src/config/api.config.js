@@ -80,6 +80,7 @@ export const API_ENDPOINTS = {
     GET_BY_ORDER: (orderId) => `/bills/order/${orderId}`,
     GENERATE: (orderId) => `/bills/order/${orderId}/generate`,
     RECORD_PAYMENT: (id) => `/bills/${id}/payment`,
+    SHARE_LINK: (id) => `/bills/${id}/share-link`,
   },
 
   // Reports are currently computed from order APIs in frontend

@@ -31,6 +31,11 @@ class BillService {
     const response = await apiClient.post(API_ENDPOINTS.BILLS.RECORD_PAYMENT(id), payload);
     return response.data;
   }
+
+  async createShareLink(id) {
+    const response = await apiClient.post(API_ENDPOINTS.BILLS.SHARE_LINK(id));
+    return response.data;
+  }
 }
 
 export default new BillService();
