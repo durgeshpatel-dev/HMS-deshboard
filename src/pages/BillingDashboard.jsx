@@ -29,6 +29,8 @@ const BillingDashboard = () => {
   const [restaurantInfo, setRestaurantInfo] = useState(null);
   const [customerPhone, setCustomerPhone] = useState('');
   const [shareLink, setShareLink] = useState(null);
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+  const [pendingWhatsApp, setPendingWhatsApp] = useState(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -185,6 +187,91 @@ const BillingDashboard = () => {
 
   const normalizePhone = (phone) => String(phone || '').replace(/[^0-9]/g, '');
 
+  const shortenUrl = async (url) => {
+    try {
+      const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(url)}`);
+      if (!response.ok) return url;
+
+      const shortUrl = (await response.text()).trim();
+      return /^https?:\/\//i.test(shortUrl) ? shortUrl : url;
+    } catch {
+      return url;
+    }
+  };
+
+  const buildWhatsAppMessage = (link, bill, tableNumber) => {
+    if (!bill || !restaurantInfo) {
+      return `Your bill is ready.\n\nDownload bill:\n${link}\n\nLink expires in 12 hours`;
+    }
+
+    const restaurantName = restaurantInfo?.name || 'Restaurant';
+    const contactPhone = restaurantInfo?.phone || '';
+    const contactEmail = restaurantInfo?.email || '';
+    const billNumber = bill?.billNumber || 'N/A';
+    const billDate = bill?.createdAt ? new Date(bill.createdAt).toLocaleDateString('en-IN') : '';
+
+    let message = `${restaurantName}\n`;
+    
+    if (contactPhone) {
+      message += `Phone: ${contactPhone}\n`;
+    }
+    if (contactEmail) {
+      message += `Email: ${contactEmail}\n`;
+    }
+    
+    message += `\n---BILL SUMMARY---\n`;
+    message += `Bill #: ${billNumber}\n`;
+    message += `Table #: ${tableNumber}\n`;
+    message += `Date: ${billDate}\n`;
+    message += `---\n`;
+    
+    message += `\nSubtotal: ₹${Number(bill.subtotal || 0).toFixed(2)}\n`;
+    
+    if (Number(bill.taxAmount || 0) > 0) {
+      message += `Tax: ₹${Number(bill.taxAmount).toFixed(2)}\n`;
+    }
+    
+    if (Number(bill.discountAmount || 0) > 0) {
+      const discountPct = bill.discountPercentage ? `(${Number(bill.discountPercentage).toFixed(1)}%)` : '';
+      message += `Discount ${discountPct}: -₹${Number(bill.discountAmount).toFixed(2)}\n`;
+    }
+    
+    if (Number(bill.extraCharges || 0) > 0) {
+      message += `Extra Charges: ₹${Number(bill.extraCharges).toFixed(2)}\n`;
+    }
+    
+    message += `---\n`;
+    message += `TOTAL: ₹${Number(bill.totalAmount || 0).toFixed(2)}\n`;
+    message += `---\n`;
+    
+    message += `\n\nDownload bill:\n${link}\n\n`;
+    
+    const expiryTime = bill.shareLinks?.[0]?.expiresAt || shareLink?.expiresAt;
+    if (expiryTime) {
+      const expiryDate = new Date(expiryTime).toLocaleString('en-IN');
+      message += `Link expires: ${expiryDate}`;
+    } else {
+      message += `Link expires in: 12 hours`;
+    }
+    
+    return message;
+  };
+
+  const openWhatsAppDesktop = () => {
+    if (!pendingWhatsApp) return;
+    const desktopUrl = `whatsapp://send?phone=${pendingWhatsApp.phone}&text=${encodeURIComponent(pendingWhatsApp.message)}`;
+    setShowWhatsAppModal(false);
+    window.location.href = desktopUrl;
+  };
+
+  const openWhatsAppWeb = () => {
+    if (!pendingWhatsApp) return;
+    const webUrl = `https://web.whatsapp.com/send?phone=${pendingWhatsApp.phone}&text=${encodeURIComponent(pendingWhatsApp.message)}`;
+    setShowWhatsAppModal(false);
+    // Keep same tab to avoid opening many new tabs on repeated shares.
+    window.location.href = webUrl;
+  };
+
   const handleSendWhatsApp = async () => {
     if (!selectedBill) {
       toast.error('Please generate a bill first');
@@ -208,11 +295,13 @@ const BillingDashboard = () => {
         return;
       }
 
-      setShareLink({ url: link, expiresAt });
-
-      const message = `Your bill is ready. Download here: ${link}\n(Link expires in 12 hours)`;
-      const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
-      window.open(waUrl, '_blank');
+      const linkToSend = await shortenUrl(link);
+      setShareLink({ url: linkToSend, expiresAt });
+      setPendingWhatsApp({
+        phone,
+        message: buildWhatsAppMessage(linkToSend, selectedBill, selectedTable?.tableNumber),
+      });
+      setShowWhatsAppModal(true);
     } catch (error) {
       console.error('Failed to create share link:', error);
       toast.error(error?.response?.data?.message || 'Failed to create share link');
@@ -588,6 +677,30 @@ const BillingDashboard = () => {
               Confirm Payment
             </Button>
           </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={showWhatsAppModal}
+        onClose={() => setShowWhatsAppModal(false)}
+        title="Choose WhatsApp"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">
+            Choose where to open your prefilled message.
+          </p>
+          <div className="grid grid-cols-1 gap-3">
+            <Button variant="primary" onClick={openWhatsAppDesktop}>
+              Open WhatsApp Desktop App
+            </Button>
+            <Button variant="secondary" onClick={openWhatsAppWeb}>
+              Open WhatsApp Web
+            </Button>
+          </div>
+          <p className="text-xs text-gray-500">
+            Note: sending is not fully automatic. WhatsApp still requires final send confirmation.
+          </p>
         </div>
       </Modal>
 
