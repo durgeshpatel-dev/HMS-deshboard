@@ -610,10 +610,10 @@ const BillingDashboard = () => {
                         variant="success"
                         className="w-full"
                         icon={<CreditCard size={18} />}
-                        onClick={() => setShowPaymentModal(true)}
-                        disabled={!selectedBill || actionLoading || selectedBill.paymentStatus === 'paid'}
+                        onClick={selectedBill?.paymentStatus === 'paid' ? handleRecordPayment : () => setShowPaymentModal(true)}
+                        disabled={!selectedBill || actionLoading || (selectedBill.paymentStatus === 'paid' && selectedTable?.status === 'available')}
                       >
-                        {selectedBill?.paymentStatus === 'paid' ? 'Already Paid' : 'Process Payment & Close Table'}
+                        {selectedBill?.paymentStatus === 'paid' ? 'Already Paid - Close Table' : 'Process Payment & Close Table'}
                       </Button>
                     </div>
                   </>
