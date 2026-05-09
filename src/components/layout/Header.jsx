@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Bell, User, Search, X, Clock } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
@@ -12,6 +13,7 @@ const Header = ({ title }) => {
   const { notifications, unreadCount, markAsRead, markAllAsRead, clearNotification } = useNotifications();
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef(null);
+  const navigate = useNavigate();
   
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -133,6 +135,32 @@ const Header = ({ title }) => {
     return date.toLocaleDateString();
   };
 
+  const handleResultClick = (result) => {
+    setShowSearchResults(false);
+    setSearchQuery('');
+    
+    switch (result.type) {
+      case 'menu':
+        navigate('/menu-items');
+        break;
+      case 'staff':
+        navigate('/staff');
+        break;
+      case 'table':
+        navigate('/');
+        break;
+      case 'order':
+        if (result.data?.tableId) {
+          navigate('/');
+        } else {
+          navigate('/parcel-orders');
+        }
+        break;
+      default:
+        break;
+    }
+  };
+
   return (
     <header className="bg-white shadow-sm border-b border-gray-200 px-8 py-4 sticky top-0 z-50 dark:bg-gray-800 dark:border-gray-700">
       <div className="flex items-center justify-between">
@@ -169,6 +197,7 @@ const Header = ({ title }) => {
                     {searchResults.map((result) => (
                       <button
                         key={`${result.type}-${result.id}`}
+                        onClick={() => handleResultClick(result)}
                         className="w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                       >
                         <div>
