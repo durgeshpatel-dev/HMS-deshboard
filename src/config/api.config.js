@@ -30,6 +30,8 @@ export const API_ENDPOINTS = {
     CREATE: '/manager/staff',
     UPDATE: (id) => `/manager/staff/${id}`,
     DELETE: (id) => `/manager/staff/${id}`,
+    RESET_PIN: (id) => `/manager/staff/${id}/reset-pin`,
+    FORGOT_PIN: (id) => `/manager/staff/${id}/forgot-pin`,
   },
 
   // Menu Management (Phase 3)

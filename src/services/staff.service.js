@@ -59,6 +59,32 @@ class StaffService {
       throw error;
     }
   }
+
+  /**
+   * Reset staff PIN (requires old pin and new pin)
+   */
+  async resetPin(id, data) {
+    try {
+      const response = await apiClient.post(API_ENDPOINTS.STAFF.RESET_PIN(id), data);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to reset staff PIN:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Forgot staff PIN (requires OTP token and new pin)
+   */
+  async forgotPin(id, data) {
+    try {
+      const response = await apiClient.post(API_ENDPOINTS.STAFF.FORGOT_PIN(id), data);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to process forgot PIN:', error);
+      throw error;
+    }
+  }
 }
 
 export default new StaffService();
