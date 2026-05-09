@@ -29,6 +29,7 @@ const StaffManagement = () => {
   const [pinModalStaff, setPinModalStaff] = useState(null);
   const [pinMode, setPinMode] = useState('change'); // 'change' | 'forgot'
   const [pinData, setPinData] = useState({ oldPin: '', newPin: '', confirmPin: '' });
+  const [forgotStep, setForgotStep] = useState('idle'); // 'idle' | 'otp-sent' | 'verified'
 
   useEffect(() => {
     fetchStaff();
@@ -175,58 +176,74 @@ const StaffManagement = () => {
     }
   };
 
-  const handleClosePinModal = () => {
-    setPinModalStaff(null);
-    setPinMode('change');
-    setPinData({ oldPin: '', newPin: '', confirmPin: '' });
-    setOtpStep(false);
-    setOtp('');
-    setConfirmationResult(null);
+  const cleanupRecaptcha = () => {
     if (window.recaptchaVerifier) {
-      window.recaptchaVerifier.clear();
+      try { window.recaptchaVerifier.clear(); } catch (_) {}
       window.recaptchaVerifier = null;
       const container = document.getElementById('recaptcha-container');
       if (container) container.innerHTML = '';
     }
   };
 
+  const handleClosePinModal = () => {
+    setPinModalStaff(null);
+    setPinMode('change');
+    setPinData({ oldPin: '', newPin: '', confirmPin: '' });
+    setForgotStep('idle');
+    setOtp('');
+    setConfirmationResult(null);
+    cleanupRecaptcha();
+  };
+
+  // Separate handler for "Send OTP" button (NOT a form submit)
+  const handleSendForgotOtp = async () => {
+    setLoading(true);
+    try {
+      const phoneWithCountry = pinModalStaff.phone.startsWith('+91')
+        ? pinModalStaff.phone
+        : '+91' + pinModalStaff.phone;
+
+      setupRecaptcha();
+      const result = await signInWithPhoneNumber(auth, phoneWithCountry, window.recaptchaVerifier);
+      setConfirmationResult(result);
+      setForgotStep('otp-sent');
+    } catch (error) {
+      console.error(error);
+      alert(error.message || 'Failed to send OTP');
+      cleanupRecaptcha();
+      setConfirmationResult(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Form submit handler – only handles actual PIN changes
   const handlePinSubmit = async (e) => {
     e.preventDefault();
+
+    // Validate new PIN fields
+    if (pinData.newPin.length < 4) return alert('New PIN must be at least 4 digits');
+    if (pinData.newPin !== pinData.confirmPin) return alert('New PINs do not match');
 
     setLoading(true);
     try {
       if (pinMode === 'change') {
-        if (!pinData.oldPin || pinData.oldPin.length < 4) return alert("Old PIN is required and must be at least 4 digits");
-        if (pinData.newPin.length < 4) return alert("New PIN must be at least 4 digits");
-        if (pinData.newPin !== pinData.confirmPin) return alert("New PINs do not match");
+        if (!pinData.oldPin || pinData.oldPin.length < 4) {
+          setLoading(false);
+          return alert('Old PIN is required and must be at least 4 digits');
+        }
 
         await StaffService.resetPin(pinModalStaff.id, {
           currentPin: pinData.oldPin,
-          newPin: pinData.newPin
+          newPin: pinData.newPin,
         });
         alert('PIN successfully changed!');
         handleClosePinModal();
       } else {
-        // forgot mode - needs OTP verification
-        const phoneWithCountry = pinModalStaff.phone.startsWith('+91') ? pinModalStaff.phone : '+91' + pinModalStaff.phone;
-        
-        if (!confirmationResult) {
-          setupRecaptcha();
-          const result = await signInWithPhoneNumber(auth, phoneWithCountry, window.recaptchaVerifier);
-          setConfirmationResult(result);
-          setOtpStep(true);
+        // Forgot mode – verify OTP then set new PIN
+        if (!confirmationResult || otp.length < 6) {
           setLoading(false);
-          return;
-        }
-
-        // We are verifying the OTP and setting a new PIN
-        if (pinData.newPin.length < 4) {
-          setLoading(false);
-          return alert("New PIN must be at least 4 digits");
-        }
-        if (pinData.newPin !== pinData.confirmPin) {
-          setLoading(false);
-          return alert("New PINs do not match");
+          return alert('Please enter the 6-digit OTP code');
         }
 
         const result = await confirmationResult.confirm(otp);
@@ -234,7 +251,7 @@ const StaffManagement = () => {
 
         await StaffService.forgotPin(pinModalStaff.id, {
           newPin: pinData.newPin,
-          firebaseIdToken
+          firebaseIdToken,
         });
         alert('PIN successfully reset!');
         handleClosePinModal();
@@ -242,15 +259,10 @@ const StaffManagement = () => {
     } catch (error) {
       console.error(error);
       alert(error?.response?.data?.message || error.message || 'Operation failed');
-      if (window.recaptchaVerifier) {
-        window.recaptchaVerifier.clear();
-        window.recaptchaVerifier = null;
-        const container = document.getElementById('recaptcha-container');
-        if (container) container.innerHTML = '';
+      // On OTP verification failure, allow retry without resending
+      if (pinMode === 'forgot') {
+        setOtp('');
       }
-      setConfirmationResult(null);
-      setOtpStep(false);
-      setOtp('');
     } finally {
       setLoading(false);
     }
@@ -628,27 +640,9 @@ const StaffManagement = () => {
             Managing PIN for <strong>{pinModalStaff.name}</strong> ({pinModalStaff.phone})
           </div>
 
-          <form onSubmit={handlePinSubmit} className="space-y-4">
-            {otpStep ? (
-              <div className="space-y-4 py-4 text-center">
-                <ShieldCheck className="w-16 h-16 text-green-500 mx-auto" />
-                <h3 className="text-lg font-medium text-gray-900">Enter Verification Code</h3>
-                <p className="text-sm text-gray-500">
-                  We've sent an SMS with a 6-digit code to +91 {pinModalStaff.phone}
-                </p>
-                <input
-                  type="text"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  className="w-full text-center text-2xl tracking-widest py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
-                  placeholder="000000"
-                  required
-                  autoFocus
-                />
-              </div>
-            ) : null}
-
-            {(!otpStep || pinMode === 'change') && pinMode === 'change' && (
+          {/* ─── CHANGE PIN MODE ─── */}
+          {pinMode === 'change' && (
+            <form onSubmit={handlePinSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Old PIN *</label>
                 <div className="relative">
@@ -659,80 +653,124 @@ const StaffManagement = () => {
                     onChange={(e) => setPinData({ ...pinData, oldPin: e.target.value.replace(/[^0-9]/g, '').slice(0, 6) })}
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
                     placeholder="Enter current PIN"
-                    required
                     disabled={loading}
                   />
                 </div>
                 <div className="text-right mt-1">
-                  <button type="button" onClick={() => { setPinMode('forgot'); setPinData({ oldPin: '', newPin: '', confirmPin: ''}); }} className="text-sm text-orange-600 hover:text-orange-800">
+                  <button type="button" onClick={() => { setPinMode('forgot'); setForgotStep('idle'); setPinData({ oldPin: '', newPin: '', confirmPin: '' }); }} className="text-sm text-orange-600 hover:text-orange-800">
                     Forgot PIN?
                   </button>
                 </div>
               </div>
-            )}
-
-            {(!otpStep && pinMode === 'forgot') ? (
-              <div className="text-center py-4">
-                <p className="text-sm text-gray-600 mb-4">You will need to verify the staff member's phone number to reset their PIN.</p>
-                <Button type="submit" variant="primary" className="w-full" disabled={loading}>
-                  {loading ? 'Processing...' : 'Send OTP via SMS'}
-                </Button>
-                <div className="mt-2 text-sm">
-                  <button type="button" onClick={() => setPinMode('change')} className="text-gray-500 hover:text-gray-800 underline">
-                    I know the Old PIN
-                  </button>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">New PIN *</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    type="password"
+                    value={pinData.newPin}
+                    onChange={(e) => setPinData({ ...pinData, newPin: e.target.value.replace(/[^0-9]/g, '').slice(0, 6) })}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                    placeholder="Enter new PIN"
+                    disabled={loading}
+                  />
                 </div>
               </div>
-            ) : (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">New PIN *</label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                    <input
-                      type="password"
-                      value={pinData.newPin}
-                      onChange={(e) => setPinData({ ...pinData, newPin: e.target.value.replace(/[^0-9]/g, '').slice(0, 6) })}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
-                      placeholder="Enter new PIN"
-                      required
-                      disabled={loading}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Repeat New PIN *</label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                    <input
-                      type="password"
-                      value={pinData.confirmPin}
-                      onChange={(e) => setPinData({ ...pinData, confirmPin: e.target.value.replace(/[^0-9]/g, '').slice(0, 6) })}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
-                      placeholder="Repeat new PIN"
-                      required
-                      disabled={loading}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex gap-3 pt-4">
-                  <Button type="submit" variant="primary" className="flex-1" disabled={loading || (otpStep && otp.length < 6)}>
-                    {loading ? 'Processing...' : (pinMode === 'change' ? 'Update PIN' : 'Verify & Reset PIN')}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={handleClosePinModal}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Repeat New PIN *</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    type="password"
+                    value={pinData.confirmPin}
+                    onChange={(e) => setPinData({ ...pinData, confirmPin: e.target.value.replace(/[^0-9]/g, '').slice(0, 6) })}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                    placeholder="Repeat new PIN"
                     disabled={loading}
-                  >
-                    Cancel
-                  </Button>
+                  />
                 </div>
-              </>
-            )}
-          </form>
+              </div>
+              <div className="flex gap-3 pt-4">
+                <Button type="submit" variant="primary" className="flex-1" disabled={loading}>
+                  {loading ? 'Processing...' : 'Update PIN'}
+                </Button>
+                <Button type="button" variant="secondary" onClick={handleClosePinModal} disabled={loading}>Cancel</Button>
+              </div>
+            </form>
+          )}
+
+          {/* ─── FORGOT PIN MODE: Step 1 – Send OTP ─── */}
+          {pinMode === 'forgot' && forgotStep === 'idle' && (
+            <div className="text-center py-4 space-y-4">
+              <p className="text-sm text-gray-600">You will need to verify the staff member's phone number to reset their PIN.</p>
+              <Button
+                type="button"
+                variant="primary"
+                className="w-full"
+                disabled={loading}
+                onClick={handleSendForgotOtp}
+              >
+                {loading ? 'Sending OTP...' : 'Send OTP via SMS'}
+              </Button>
+              <div className="text-sm">
+                <button type="button" onClick={() => { setPinMode('change'); setPinData({ oldPin: '', newPin: '', confirmPin: '' }); }} className="text-gray-500 hover:text-gray-800 underline">
+                  I know the Old PIN
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ─── FORGOT PIN MODE: Step 2 – Enter OTP + New PIN ─── */}
+          {pinMode === 'forgot' && forgotStep === 'otp-sent' && (
+            <form onSubmit={handlePinSubmit} className="space-y-4">
+              <div className="text-center">
+                <ShieldCheck className="w-12 h-12 text-green-500 mx-auto mb-2" />
+                <p className="text-sm text-gray-500">Enter the 6-digit code sent to +91 {pinModalStaff.phone}</p>
+              </div>
+              <input
+                type="text"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                className="w-full text-center text-2xl tracking-widest py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                placeholder="000000"
+                autoFocus
+              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">New PIN *</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    type="password"
+                    value={pinData.newPin}
+                    onChange={(e) => setPinData({ ...pinData, newPin: e.target.value.replace(/[^0-9]/g, '').slice(0, 6) })}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                    placeholder="Enter new PIN"
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Repeat New PIN *</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    type="password"
+                    value={pinData.confirmPin}
+                    onChange={(e) => setPinData({ ...pinData, confirmPin: e.target.value.replace(/[^0-9]/g, '').slice(0, 6) })}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                    placeholder="Repeat new PIN"
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3 pt-4">
+                <Button type="submit" variant="primary" className="flex-1" disabled={loading || otp.length < 6}>
+                  {loading ? 'Verifying...' : 'Verify & Reset PIN'}
+                </Button>
+                <Button type="button" variant="secondary" onClick={handleClosePinModal} disabled={loading}>Cancel</Button>
+              </div>
+            </form>
+          )}
         </Modal>
       )}
 
