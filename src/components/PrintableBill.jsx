@@ -107,15 +107,26 @@ const PrintableBill = ({ bill, table, orders, restaurantInfo }) => {
 
       {/* Items List */}
       <div className="items-list">
-        {combinedItems.map((item, index) => (
-          <div key={index} className="item-row">
-            <div className="item-name-qty">
-              <span className="item-name">{item.menuItem?.name || 'Item'}</span>
-              <span className="item-qty">x{item.quantity}</span>
-            </div>
-            <div className="item-amount">₹{Number(item.subtotal).toFixed(2)}</div>
+        {/* Header row for items */}
+        <div className="item-row header-row" style={{ borderBottom: '1px solid #000', borderTop: '1px solid #000', padding: '4px 0', fontWeight: 'bold' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span>Item</span>
+            <span>Amount</span>
           </div>
-        ))}
+        </div>
+        {combinedItems.map((item, index) => {
+          // Fallback calculation if unitPrice is missing
+          const unitPrice = item.unitPrice || item.price || (item.subtotal / item.quantity) || 0;
+          return (
+            <div key={index} className="item-row">
+              <div className="item-name">{item.menuItem?.name || 'Item'}</div>
+              <div className="item-details" style={{ display: 'flex', justifyContent: 'space-between', marginTop: '2px' }}>
+                <span className="item-qty-rate text-gray-600 text-sm">{item.quantity} x ₹{Number(unitPrice).toFixed(2)}</span>
+                <span className="item-amount">₹{Number(item.subtotal).toFixed(2)}</span>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       <div className="bill-divider"></div>

@@ -73,13 +73,17 @@
     position: absolute !important;
     left: 0 !important;
     top: 0 !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    min-height: 140mm;
+    min-height: 80mm;
     padding: 5mm !important;
-    margin: 0 !important;
+    margin: 0 auto !important;
     z-index: 99999 !important;
     background: white !important;
+  }
+
+  /* Force exact widths based on size */
+  .printable-bill.printer-size-58mm {
+    width: 58mm !important;
+    max-width: 58mm !important;
   }
 
   /* Bill Header */
@@ -225,6 +229,8 @@
   /* ---- Specific size adjustments ---- */
   .printable-bill.printer-size-80mm {
     font-size: 10pt;
+    width: 80mm !important;
+    max-width: 80mm !important;
   }
   .printable-bill.printer-size-80mm .restaurant-name {
     font-size: 15pt;
@@ -237,6 +243,8 @@
 
   .printable-bill.printer-size-112mm {
     font-size: 11pt;
+    width: 112mm !important;
+    max-width: 112mm !important;
   }
   .printable-bill.printer-size-112mm .restaurant-name {
     font-size: 17pt;
@@ -253,6 +261,7 @@
   .printable-bill.printer-size-a5 {
     font-size: 11pt;
     padding: 10mm !important;
+    width: 148mm !important;
     max-width: 148mm !important;
     margin: 0 auto !important;
   }
@@ -274,6 +283,7 @@
   .printable-bill.printer-size-a4 {
     font-size: 12pt;
     padding: 15mm !important;
+    width: 210mm !important;
     max-width: 210mm !important;
     margin: 0 auto !important;
   }
