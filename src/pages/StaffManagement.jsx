@@ -192,17 +192,14 @@ const StaffManagement = () => {
 
   const handlePinSubmit = async (e) => {
     e.preventDefault();
-    if (pinData.newPin.length < 4) {
-      return alert("New PIN must be at least 4 digits");
-    }
-    if (pinData.newPin !== pinData.confirmPin) {
-      return alert("New PINs do not match");
-    }
 
     setLoading(true);
     try {
       if (pinMode === 'change') {
-        if (!pinData.oldPin) return alert("Old PIN is required");
+        if (!pinData.oldPin || pinData.oldPin.length < 4) return alert("Old PIN is required and must be at least 4 digits");
+        if (pinData.newPin.length < 4) return alert("New PIN must be at least 4 digits");
+        if (pinData.newPin !== pinData.confirmPin) return alert("New PINs do not match");
+
         await StaffService.resetPin(pinModalStaff.id, {
           currentPin: pinData.oldPin,
           newPin: pinData.newPin
@@ -220,6 +217,16 @@ const StaffManagement = () => {
           setOtpStep(true);
           setLoading(false);
           return;
+        }
+
+        // We are verifying the OTP and setting a new PIN
+        if (pinData.newPin.length < 4) {
+          setLoading(false);
+          return alert("New PIN must be at least 4 digits");
+        }
+        if (pinData.newPin !== pinData.confirmPin) {
+          setLoading(false);
+          return alert("New PINs do not match");
         }
 
         const result = await confirmationResult.confirm(otp);
