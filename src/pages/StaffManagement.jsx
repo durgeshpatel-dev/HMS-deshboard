@@ -49,11 +49,14 @@ const StaffManagement = () => {
   };
 
   const setupRecaptcha = () => {
-    if (!window.recaptchaVerifier) {
-      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'sign-in-button', {
-        size: 'invisible',
-      });
+    if (window.recaptchaVerifier) {
+      // Clean up old verifier to avoid duplicate widget error
+      window.recaptchaVerifier.clear();
+      window.recaptchaVerifier = null;
     }
+    window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+      size: 'invisible',
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -493,7 +496,7 @@ const StaffManagement = () => {
                 </div>
 
                 <div className="flex gap-3 pt-4">
-                  <Button id="sign-in-button" type="submit" variant="primary" className="flex-1" disabled={loading}>
+                  <Button type="submit" variant="primary" className="flex-1" disabled={loading}>
                     {loading ? 'Processing...' : editingStaff ? 'Update' : 'Send OTP & Add Staff'}
                   </Button>
                   <Button
@@ -510,6 +513,8 @@ const StaffManagement = () => {
           </form>
         </Modal>
       )}
+      {/* Invisible reCAPTCHA container required by Firebase */}
+      <div id="recaptcha-container"></div>
     </div>
   );
 };
