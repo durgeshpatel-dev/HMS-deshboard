@@ -44,11 +44,11 @@ const PaymentMethodsCard = ({ initialMethods, toast }) => {
           <div
             key={method.id}
             className={`p-4 border-2 rounded-lg transition-all ${
-              method.enabled ? 'border-orange-500 bg-orange-50' : 'border-gray-200 bg-gray-50'
+              method.enabled ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20 dark:border-orange-500/50' : 'border-gray-200 bg-gray-50 dark:border-slate-700 dark:bg-slate-800'
             }`}
           >
             <div className="flex items-center justify-between mb-2">
-              <span className="font-semibold text-gray-900">{method.name}</span>
+              <span className="font-semibold text-gray-900 dark:text-white">{method.name}</span>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"
@@ -58,10 +58,10 @@ const PaymentMethodsCard = ({ initialMethods, toast }) => {
                   className="sr-only peer"
                   aria-label={`Toggle ${method.name}`}
                 />
-                <div className={`w-11 h-6 ${savingId === method.id ? 'opacity-50' : ''} bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500`}></div>
+                <div className={`w-11 h-6 ${savingId === method.id ? 'opacity-50' : ''} bg-gray-200 dark:bg-slate-600 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500`}></div>
               </label>
             </div>
-            <p className="text-xs text-gray-600">{method.enabled ? 'Enabled for customers' : 'Disabled'}</p>
+            <p className="text-xs text-gray-600 dark:text-gray-400">{method.enabled ? 'Enabled for customers' : 'Disabled'}</p>
           </div>
         ))}
       </div>

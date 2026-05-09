@@ -26,11 +26,11 @@ const extractObject = (response) => {
 };
 
 const getStatusPillClasses = (status) => {
-  if (status === 'available') return 'bg-green-100 text-green-700';
-  if (status === 'occupied') return 'bg-orange-100 text-orange-700';
-  if (status === 'reserved') return 'bg-blue-100 text-blue-700';
-  if (status === 'cleaning') return 'bg-gray-200 text-gray-700';
-  return 'bg-gray-100 text-gray-600';
+  if (status === 'available') return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+  if (status === 'occupied') return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400';
+  if (status === 'reserved') return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+  if (status === 'cleaning') return 'bg-gray-200 text-gray-700 dark:bg-slate-700 dark:text-gray-300';
+  return 'bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-gray-300';
 };
 
 const TableConfigCard = ({ toast }) => {
@@ -168,43 +168,43 @@ const TableConfigCard = ({ toast }) => {
       >
         {/* Stats strip */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
-          <div className="p-3 rounded-lg bg-gray-100">
-            <p className="text-xs text-gray-600">Total</p>
-            <p className="text-xl font-bold text-gray-900">{tableStats.total}</p>
+          <div className="p-3 rounded-lg bg-gray-100 dark:bg-slate-800">
+            <p className="text-xs text-gray-600 dark:text-gray-400">Total</p>
+            <p className="text-xl font-bold text-gray-900 dark:text-white">{tableStats.total}</p>
           </div>
-          <div className="p-3 rounded-lg bg-green-50">
-            <p className="text-xs text-green-700">Available</p>
-            <p className="text-xl font-bold text-green-800">{tableStats.available}</p>
+          <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20">
+            <p className="text-xs text-green-700 dark:text-green-400">Available</p>
+            <p className="text-xl font-bold text-green-800 dark:text-green-300">{tableStats.available}</p>
           </div>
-          <div className="p-3 rounded-lg bg-orange-50">
-            <p className="text-xs text-orange-700">Occupied</p>
-            <p className="text-xl font-bold text-orange-800">{tableStats.occupied}</p>
+          <div className="p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20">
+            <p className="text-xs text-orange-700 dark:text-orange-400">Occupied</p>
+            <p className="text-xl font-bold text-orange-800 dark:text-orange-300">{tableStats.occupied}</p>
           </div>
-          <div className="p-3 rounded-lg bg-blue-50">
-            <p className="text-xs text-blue-700">Reserved</p>
-            <p className="text-xl font-bold text-blue-800">{tableStats.reserved}</p>
+          <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20">
+            <p className="text-xs text-blue-700 dark:text-blue-400">Reserved</p>
+            <p className="text-xl font-bold text-blue-800 dark:text-blue-300">{tableStats.reserved}</p>
           </div>
-          <div className="p-3 rounded-lg bg-slate-100">
-            <p className="text-xs text-slate-700">Cleaning</p>
-            <p className="text-xl font-bold text-slate-800">{tableStats.cleaning}</p>
+          <div className="p-3 rounded-lg bg-slate-100 dark:bg-slate-800">
+            <p className="text-xs text-slate-700 dark:text-slate-400">Cleaning</p>
+            <p className="text-xl font-bold text-slate-800 dark:text-slate-300">{tableStats.cleaning}</p>
           </div>
         </div>
 
-        <div className="mb-4 text-sm text-gray-600">
-          Available tables: <span className="font-semibold text-gray-900">{tableStats.available}</span>
-          &nbsp;·&nbsp; Total: <span className="font-semibold text-gray-900">{tableStats.total}</span>
+        <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+          Available tables: <span className="font-semibold text-gray-900 dark:text-white">{tableStats.available}</span>
+          &nbsp;·&nbsp; Total: <span className="font-semibold text-gray-900 dark:text-white">{tableStats.total}</span>
         </div>
 
         {/* Table list */}
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-gray-200 bg-gray-50">
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Table #</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Capacity</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Location</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Status</th>
-                <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Actions</th>
+              <tr className="border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800">
+                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">Table #</th>
+                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">Capacity</th>
+                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">Location</th>
+                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">Status</th>
+                <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -220,14 +220,14 @@ const TableConfigCard = ({ toast }) => {
                 </tr>
               ) : (
                 tables.map((table) => (
-                  <tr key={table.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                    <td className="py-3 px-4 font-semibold text-gray-900">{table.tableNumber || table.name || table.id}</td>
-                    <td className="py-3 px-4 text-gray-700">{table.capacity} persons</td>
-                    <td className="py-3 px-4 text-gray-500 text-sm">
+                  <tr key={table.id} className="border-b border-gray-100 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+                    <td className="py-3 px-4 font-semibold text-gray-900 dark:text-white">{table.tableNumber || table.name || table.id}</td>
+                    <td className="py-3 px-4 text-gray-700 dark:text-gray-300">{table.capacity} persons</td>
+                    <td className="py-3 px-4 text-gray-500 dark:text-gray-400 text-sm">
                       {table.location ? (
-                        <span className="flex items-center gap-1"><MapPin size={13} className="text-gray-400" />{table.location}</span>
+                        <span className="flex items-center gap-1"><MapPin size={13} className="text-gray-400 dark:text-gray-500" />{table.location}</span>
                       ) : (
-                        <span className="text-gray-300">—</span>
+                        <span className="text-gray-300 dark:text-gray-600">—</span>
                       )}
                     </td>
                     <td className="py-3 px-4">
@@ -236,7 +236,7 @@ const TableConfigCard = ({ toast }) => {
                           {table.status}
                         </span>
                         <select
-                          className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                          className="text-xs border border-gray-300 dark:border-slate-600 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-slate-700 dark:text-white"
                           value={table.status}
                           onChange={(e) => handleStatusChange(table.id, e.target.value)}
                           disabled={statusLoadingId === table.id}

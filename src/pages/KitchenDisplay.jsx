@@ -73,11 +73,11 @@ const KitchenDisplay = () => {
 
   const getStatusColor = (status) => {
     const colors = {
-      pending: 'bg-red-100 border-red-300',
-      preparing: 'bg-yellow-100 border-yellow-300',
-      ready: 'bg-green-100 border-green-300',
+      pending: 'bg-red-50 border-red-200 dark:bg-red-900/40 dark:border-red-800',
+      preparing: 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/40 dark:border-yellow-800',
+      ready: 'bg-green-50 border-green-200 dark:bg-green-900/40 dark:border-green-800',
     };
-    return colors[status] || 'bg-gray-100 border-gray-300';
+    return colors[status] || 'bg-gray-50 border-gray-200 dark:bg-gray-800 dark:border-gray-700';
   };
 
   const getStatusIcon = (status) => {
@@ -129,24 +129,24 @@ const KitchenDisplay = () => {
 
         {/* Status Overview */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <Card className="bg-red-900 border-red-700">
+          <Card className="bg-red-50 border-red-200 dark:bg-red-900/40 dark:border-red-800">
             <div className="p-4">
-              <div className="text-3xl font-bold">{pendingCount}</div>
-              <div className="text-red-200 text-sm">Pending Orders</div>
+              <div className="text-3xl font-bold text-red-700 dark:text-red-400">{pendingCount}</div>
+              <div className="text-red-600 dark:text-red-300 text-sm">Pending Orders</div>
             </div>
           </Card>
-          <Card className="bg-yellow-900 border-yellow-700">
+          <Card className="bg-yellow-50 border-yellow-200 dark:bg-yellow-900/40 dark:border-yellow-800">
             <div className="p-4">
-              <div className="text-3xl font-bold">
+              <div className="text-3xl font-bold text-yellow-700 dark:text-yellow-400">
                 {orders.filter((o) => o.kitchenStatus === 'preparing').length}
               </div>
-              <div className="text-yellow-200 text-sm">Preparing</div>
+              <div className="text-yellow-600 dark:text-yellow-300 text-sm">Preparing</div>
             </div>
           </Card>
-          <Card className="bg-green-900 border-green-700">
+          <Card className="bg-green-50 border-green-200 dark:bg-green-900/40 dark:border-green-800">
             <div className="p-4">
-              <div className="text-3xl font-bold">{readyCount}</div>
-              <div className="text-green-200 text-sm">Ready for Pickup</div>
+              <div className="text-3xl font-bold text-green-700 dark:text-green-400">{readyCount}</div>
+              <div className="text-green-600 dark:text-green-300 text-sm">Ready for Pickup</div>
             </div>
           </Card>
         </div>
@@ -205,35 +205,35 @@ const KitchenDisplay = () => {
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       {getStatusIcon(order.kitchenStatus)}
-                      <span className="font-bold text-lg">{order.orderNumber}</span>
+                      <span className="font-bold text-lg text-gray-900 dark:text-white">{order.orderNumber}</span>
                     </div>
-                    <span className="text-xs font-semibold uppercase">
+                    <span className="text-xs font-semibold uppercase text-gray-700 dark:text-gray-300">
                       {order.kitchenStatus || 'pending'}
                     </span>
                   </div>
 
                   {/* Order Type & Time */}
-                  <div className="mb-3 pb-3 border-b border-current border-opacity-20">
-                    <div className="text-sm font-semibold">
+                  <div className="mb-3 pb-3 border-b border-gray-200 dark:border-gray-700">
+                    <div className="text-sm font-semibold text-gray-800 dark:text-gray-200">
                       {order.orderType === 'dine_in' 
                         ? `Table ${order.table?.tableNumber || 'N/A'}`
                         : 'Parcel Order'}
                     </div>
-                    <div className="text-xs text-gray-600 mt-1">
+                    <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
                       {getElapsedTime(order.createdAt)}
                     </div>
                   </div>
 
                   {/* Items */}
                   <div className="mb-4">
-                    <div className="text-xs font-semibold mb-2 opacity-75">ITEMS:</div>
+                    <div className="text-xs font-semibold mb-2 text-gray-500 dark:text-gray-400">ITEMS:</div>
                     <div className="space-y-1 max-h-32 overflow-y-auto">
                       {order.items?.map((item) => (
-                        <div key={item.id} className="text-sm">
+                        <div key={item.id} className="text-sm text-gray-800 dark:text-gray-200">
                           <span className="font-semibold">{item.quantity}x</span>{' '}
                           {item.menuItem?.name || 'Item'}
                           {item.customizations?.specialInstructions && (
-                            <div className="text-xs mt-1 italic opacity-75">
+                            <div className="text-xs mt-1 italic text-gray-600 dark:text-gray-400">
                               Note: {item.customizations.specialInstructions}
                             </div>
                           )}
@@ -244,7 +244,7 @@ const KitchenDisplay = () => {
 
                   {/* Special Notes */}
                   {order.specialNotes && (
-                    <div className="mb-4 p-2 bg-black bg-opacity-20 rounded text-xs italic">
+                    <div className="mb-4 p-2 bg-gray-100 dark:bg-gray-800 rounded text-xs italic text-gray-700 dark:text-gray-300">
                       {order.specialNotes}
                     </div>
                   )}
