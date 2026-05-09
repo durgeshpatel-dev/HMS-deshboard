@@ -3,8 +3,10 @@ import Header from '../components/layout/Header';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import Modal from '../components/common/Modal';
-import { Plus, Edit2, Trash2, Phone, User, Lock, Users } from 'lucide-react';
+import { Plus, Edit2, Trash2, Phone, User, Lock, Users, ShieldCheck } from 'lucide-react';
 import StaffService from '../services/staff.service';
+import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
+import { auth } from '../config/firebase';
 
 const StaffManagement = () => {
   const [staff, setStaff] = useState([]);
@@ -20,6 +22,9 @@ const StaffManagement = () => {
     role: 'waiter',
     isActive: true,
   });
+  const [otpStep, setOtpStep] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [confirmationResult, setConfirmationResult] = useState(null);
 
   useEffect(() => {
     fetchStaff();
@@ -43,35 +48,74 @@ const StaffManagement = () => {
     }
   };
 
+  const setupRecaptcha = () => {
+    if (!window.recaptchaVerifier) {
+      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'sign-in-button', {
+        size: 'invisible',
+      });
+    }
+  };
+
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     setLoading(true);
 
     try {
+      if (editingStaff) {
+        // Edit mode (no OTP required for basic updates)
+        const updatePayload = {
+          name: formData.name,
+          role: formData.role,
+          isActive: formData.isActive,
+          ...(formData.pin ? { pin: formData.pin } : {}),
+        };
+        await StaffService.updateStaff(editingStaff.id, updatePayload);
+        await fetchStaff();
+        handleCloseModal();
+        return;
+      }
+
+      // CREATE MODE - Requires OTP
+      const phoneWithCountry = formData.phone.startsWith('+91') ? formData.phone : '+91' + formData.phone;
+
+      // Step 1: Send SMS
+      if (!confirmationResult) {
+        setupRecaptcha();
+        const result = await signInWithPhoneNumber(auth, phoneWithCountry, window.recaptchaVerifier);
+        setConfirmationResult(result);
+        setOtpStep(true);
+        setLoading(false);
+        return;
+      }
+
+      // Step 2: Verify OTP and Submit
+      const result = await confirmationResult.confirm(otp);
+      const firebaseIdToken = await result.user.getIdToken();
+
       const createPayload = {
         name: formData.name,
         phone: formData.phone,
         role: formData.role,
         isActive: formData.isActive,
-        ...(formData.pin ? { pin: formData.pin } : {}),
+        pin: formData.pin,
+        firebaseIdToken, // required by backend
       };
 
-      const updatePayload = {
-        name: formData.name,
-        role: formData.role,
-        isActive: formData.isActive,
-        ...(formData.pin ? { pin: formData.pin } : {}),
-      };
-
-      if (editingStaff) {
-        await StaffService.updateStaff(editingStaff.id, updatePayload);
-      } else {
-        await StaffService.createStaff(createPayload);
-      }
+      await StaffService.createStaff(createPayload);
       await fetchStaff();
       handleCloseModal();
     } catch (error) {
+      console.error(error);
       alert(error?.response?.data?.message || error.message || 'Operation failed');
+      // Reset recaptcha if error
+      if (window.recaptchaVerifier) {
+        window.recaptchaVerifier.render().then(function(widgetId) {
+          window.grecaptcha.reset(widgetId);
+        });
+      }
+      setConfirmationResult(null);
+      setOtpStep(false);
+      setOtp('');
     } finally {
       setLoading(false);
     }
@@ -112,6 +156,9 @@ const StaffManagement = () => {
       role: 'waiter',
       isActive: true,
     });
+    setOtpStep(false);
+    setOtp('');
+    setConfirmationResult(null);
   };
 
   const getRoleBadgeColor = (role) => {
@@ -328,112 +375,138 @@ const StaffManagement = () => {
           title={editingStaff ? 'Edit Staff Member' : 'Add Staff Member'}
         >
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Name *
-              </label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            {otpStep ? (
+              <div className="space-y-4 py-4 text-center">
+                <ShieldCheck className="w-16 h-16 text-green-500 mx-auto" />
+                <h3 className="text-lg font-medium text-gray-900">Enter Verification Code</h3>
+                <p className="text-sm text-gray-500">
+                  We've sent an SMS with a 6-digit code to +91 {formData.phone}
+                </p>
                 <input
                   type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
-                  placeholder="Enter staff name"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  className="w-full text-center text-2xl tracking-widest py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                  placeholder="000000"
                   required
-                  disabled={loading}
+                  autoFocus
                 />
+                <div className="flex gap-3 pt-4">
+                  <Button type="submit" variant="primary" className="flex-1" disabled={loading || otp.length < 6}>
+                    {loading ? 'Verifying...' : 'Verify & Add Staff'}
+                  </Button>
+                </div>
               </div>
-            </div>
+            ) : (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Name *
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                      placeholder="Enter staff name"
+                      required
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Phone Number *
-              </label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/[^0-9]/g, '').slice(0, 10);
-                    setFormData({ ...formData, phone: value });
-                  }}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
-                  placeholder="10-digit phone number"
-                  required
-                  disabled={loading || editingStaff} // Can't edit phone
-                />
-              </div>
-              {editingStaff && (
-                <p className="text-xs text-gray-500 mt-1">Phone number cannot be changed</p>
-              )}
-            </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Phone Number *
+                  </label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/[^0-9]/g, '').slice(0, 10);
+                        setFormData({ ...formData, phone: value });
+                      }}
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                      placeholder="10-digit phone number"
+                      required
+                      disabled={loading || editingStaff} // Can't edit phone
+                    />
+                  </div>
+                  {editingStaff && (
+                    <p className="text-xs text-gray-500 mt-1">Phone number cannot be changed</p>
+                  )}
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                PIN * {editingStaff && '(Leave blank to keep current)'}
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input
-                  type="password"
-                  value={formData.pin}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
-                    setFormData({ ...formData, pin: value });
-                  }}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
-                  placeholder="4-6 digit PIN"
-                  required={!editingStaff}
-                  disabled={loading}
-                />
-              </div>
-            </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    PIN * {editingStaff && '(Leave blank to keep current)'}
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <input
+                      type="password"
+                      value={formData.pin}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
+                        setFormData({ ...formData, pin: value });
+                      }}
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                      placeholder="4-6 digit PIN"
+                      required={!editingStaff}
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Role *
-              </label>
-              <select
-                value={formData.role}
-                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
-                required
-                disabled={loading}
-              >
-                <option value="waiter">Waiter</option>
-                <option value="cook">Cook</option>
-              </select>
-            </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Role *
+                  </label>
+                  <select
+                    value={formData.role}
+                    onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                    required
+                    disabled={loading}
+                  >
+                    <option value="waiter">Waiter</option>
+                    <option value="cook">Cook</option>
+                  </select>
+                </div>
 
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="isActive"
-                checked={formData.isActive}
-                onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
-                disabled={loading}
-              />
-              <label htmlFor="isActive" className="ml-2 text-sm text-gray-700">
-                Active
-              </label>
-            </div>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="isActive"
+                    checked={formData.isActive}
+                    onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                    className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+                    disabled={loading}
+                  />
+                  <label htmlFor="isActive" className="ml-2 text-sm text-gray-700">
+                    Active
+                  </label>
+                </div>
 
-            <div className="flex gap-3 pt-4">
-              <Button type="submit" variant="primary" className="flex-1" disabled={loading}>
-                {loading ? 'Saving...' : editingStaff ? 'Update' : 'Add Staff'}
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={handleCloseModal}
-                disabled={loading}
-              >
-                Cancel
-              </Button>
-            </div>
+                <div className="flex gap-3 pt-4">
+                  <Button id="sign-in-button" type="submit" variant="primary" className="flex-1" disabled={loading}>
+                    {loading ? 'Processing...' : editingStaff ? 'Update' : 'Send OTP & Add Staff'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={handleCloseModal}
+                    disabled={loading}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </>
+            )}
           </form>
         </Modal>
       )}
