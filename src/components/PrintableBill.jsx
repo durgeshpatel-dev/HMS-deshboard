@@ -31,9 +31,25 @@ const PrintableBill = ({ bill, table, orders, restaurantInfo }) => {
   const settings = restaurantInfo?.settings || {};
   const taxPercentage = settings.taxPercentage ?? settings.tax_percentage ?? 5;
   const gstNumber = restaurantInfo?.gstNumber || settings.gstNumber || settings.gst_number || null;
+  const printerSize = settings.printerSize || settings.printer_size || '58mm';
+
+  let pageStyle = '';
+  const sizeUpper = printerSize.toUpperCase();
+  if (sizeUpper === '58MM') {
+    pageStyle = '@page { size: 58mm auto; margin: 0; }';
+  } else if (sizeUpper === '80MM') {
+    pageStyle = '@page { size: 80mm auto; margin: 0; }';
+  } else if (sizeUpper === '112MM') {
+    pageStyle = '@page { size: 112mm auto; margin: 0; }';
+  } else if (sizeUpper === 'A5') {
+    pageStyle = '@page { size: A5 portrait; margin: 10mm; }';
+  } else if (sizeUpper === 'A4') {
+    pageStyle = '@page { size: A4 portrait; margin: 15mm; }';
+  }
 
   return (
-    <div className="printable-bill">
+    <div className={`printable-bill printer-size-${printerSize.toLowerCase()}`}>
+      {pageStyle && <style>{`@media print { ${pageStyle} }`}</style>}
       {/* Restaurant Header */}
       <div className="bill-header">
         <h1 className="restaurant-name">{restaurantInfo?.name || 'Restaurant HMS'}</h1>

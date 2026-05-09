@@ -12,6 +12,7 @@ const TaxBillingCard = ({ initialSettings, toast }) => {
   const [settings, setSettings] = useState({
     taxPercentage: initialSettings?.taxPercentage ?? 5,
     gstNumber: initialSettings?.gstNumber || '',
+    printerSize: initialSettings?.printerSize || initialSettings?.printer_size || '58mm',
   });
   const [saving, setSaving] = useState(false);
 
@@ -26,6 +27,7 @@ const TaxBillingCard = ({ initialSettings, toast }) => {
       await SettingsService.updateRestaurantSettings({
         taxPercentage: pct,
         gstNumber: settings.gstNumber.trim(),
+        printerSize: settings.printerSize,
       });
       toast.success('Tax & billing settings saved successfully!');
     } catch (error) {
@@ -69,6 +71,21 @@ const TaxBillingCard = ({ initialSettings, toast }) => {
             maxLength={20}
           />
           <p className="text-xs text-gray-500 mt-1">Printed on every bill for GST compliance. Leave blank if not applicable.</p>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Printer Size</label>
+          <select
+            value={settings.printerSize}
+            onChange={(e) => setSettings(prev => ({ ...prev, printerSize: e.target.value }))}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors bg-white dark:bg-gray-800"
+          >
+            <option value="58mm">58mm (2-inch Thermal)</option>
+            <option value="80mm">80mm (3-inch Thermal - Standard)</option>
+            <option value="112mm">112mm (4-inch Thermal - Wide)</option>
+            <option value="A5">A5 / Half Paper</option>
+            <option value="A4">A4 / Standard Paper</option>
+          </select>
+          <p className="text-xs text-gray-500 mt-1">Select the paper size used for printing bills.</p>
         </div>
       </div>
       <div className="mt-6 flex justify-end">

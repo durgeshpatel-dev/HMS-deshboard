@@ -23,11 +23,7 @@
    ================================================================ */
 @media print {
 
-  /* ---- Thermal receipt page setup (58mm) ---- */
-  @page {
-    size: 58mm auto;
-    margin: 0;
-  }
+  /* ---- Page size is dynamically injected by components ---- */
 
   /* ---- Reset body ---- */
   body {
@@ -224,6 +220,76 @@
   .bill-footer p {
     margin: 3px 0;
     line-height: 1.4;
+  }
+
+  /* ---- Specific size adjustments ---- */
+  .printable-bill.printer-size-80mm {
+    font-size: 10pt;
+  }
+  .printable-bill.printer-size-80mm .restaurant-name {
+    font-size: 15pt;
+  }
+  .printable-bill.printer-size-80mm .bill-info,
+  .printable-bill.printer-size-80mm .item-row,
+  .printable-bill.printer-size-80mm .bill-totals {
+    font-size: 10pt;
+  }
+
+  .printable-bill.printer-size-112mm {
+    font-size: 11pt;
+  }
+  .printable-bill.printer-size-112mm .restaurant-name {
+    font-size: 17pt;
+  }
+  .printable-bill.printer-size-112mm .bill-info,
+  .printable-bill.printer-size-112mm .item-row,
+  .printable-bill.printer-size-112mm .bill-totals {
+    font-size: 11pt;
+  }
+  .printable-bill.printer-size-112mm .bill-grand-total {
+    font-size: 14pt;
+  }
+
+  .printable-bill.printer-size-a5 {
+    font-size: 11pt;
+    padding: 10mm !important;
+    max-width: 148mm !important;
+    margin: 0 auto !important;
+  }
+  .printable-bill.printer-size-a5 .restaurant-name {
+    font-size: 16pt;
+  }
+  .printable-bill.printer-size-a5 .bill-info,
+  .printable-bill.printer-size-a5 .item-row,
+  .printable-bill.printer-size-a5 .bill-totals {
+    font-size: 11pt;
+  }
+  .printable-bill.printer-size-a5 .bill-grand-total {
+    font-size: 14pt;
+  }
+  .printable-bill.printer-size-a5 .item-amount {
+    font-size: 12pt;
+  }
+
+  .printable-bill.printer-size-a4 {
+    font-size: 12pt;
+    padding: 15mm !important;
+    max-width: 210mm !important;
+    margin: 0 auto !important;
+  }
+  .printable-bill.printer-size-a4 .restaurant-name {
+    font-size: 20pt;
+  }
+  .printable-bill.printer-size-a4 .bill-info,
+  .printable-bill.printer-size-a4 .item-row,
+  .printable-bill.printer-size-a4 .bill-totals {
+    font-size: 12pt;
+  }
+  .printable-bill.printer-size-a4 .bill-grand-total {
+    font-size: 16pt;
+  }
+  .printable-bill.printer-size-a4 .item-amount {
+    font-size: 14pt;
   }
 
   /* ---- PRINTABLE REPORT (A4) ---- */
