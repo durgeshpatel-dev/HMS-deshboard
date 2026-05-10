@@ -18,6 +18,7 @@ import RestaurantInfoCard from './settings/RestaurantInfoCard';
 import TableConfigCard from './settings/TableConfigCard';
 import PaymentMethodsCard from './settings/PaymentMethodsCard';
 import TaxBillingCard from './settings/TaxBillingCard';
+import AppDownloadCard from './settings/AppDownloadCard';
 
 const Settings = () => {
   const { toasts, toast, dismissToast } = useToast();
@@ -64,6 +65,7 @@ const Settings = () => {
       <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
         {loaded && (
           <>
+            <AppDownloadCard link={restaurantData?.systemSettings?.app_download_link} toast={toast} />
             <RestaurantInfoCard key="info" initialData={restaurantInfoData} toast={toast} />
             <TableConfigCard toast={toast} />
             <PaymentMethodsCard initialMethods={paymentMethods} toast={toast} />
