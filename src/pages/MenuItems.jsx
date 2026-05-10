@@ -41,6 +41,7 @@ const MenuItems = () => {
     imageUrl: '',
     preparationTime: 15,
     isVegetarian: false,
+    isCustomizable: true,
   });
 
   const categories = useMemo(
@@ -112,6 +113,7 @@ const MenuItems = () => {
       imageUrl: '',
       preparationTime: 15,
       isVegetarian: false,
+      isCustomizable: true,
     });
     setShowModal(true);
   }, [categoriesData]);
@@ -129,6 +131,7 @@ const MenuItems = () => {
       imageUrl: item.imageUrl || '',
       preparationTime: item.customizations?.preparationTime ?? item.preparationTime ?? 15,
       isVegetarian: item.isVegetarian || false,
+      isCustomizable: item.customizations?.isCustomizable ?? true,
     });
     setShowModal(true);
   }, []);
@@ -200,6 +203,7 @@ const MenuItems = () => {
       imageUrl: formData.imageUrl,
       customizations: {
         preparationTime: Number(formData.preparationTime) || 0,
+        isCustomizable: formData.isCustomizable,
       },
       isVegetarian: formData.isVegetarian,
     };
@@ -516,6 +520,16 @@ const MenuItems = () => {
                 className="w-4 h-4 text-orange-500 rounded focus:ring-orange-500"
               />
               <span className="text-sm font-semibold">Available</span>
+            </label>
+
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.isCustomizable}
+                onChange={(e) => setFormData({ ...formData, isCustomizable: e.target.checked })}
+                className="w-4 h-4 text-orange-500 rounded focus:ring-orange-500"
+              />
+              <span className="text-sm font-semibold">Requires Customization</span>
             </label>
           </div>
 
