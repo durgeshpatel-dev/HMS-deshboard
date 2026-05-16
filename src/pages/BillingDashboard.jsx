@@ -201,7 +201,7 @@ const BillingDashboard = () => {
 
   const buildWhatsAppMessage = (link, bill, tableNumber) => {
     if (!bill || !restaurantInfo) {
-      return `Your bill is ready.\n\nDownload bill:\n${link}\n\nLink expires in 12 hours`;
+      return `🧾 *Your bill is ready!*\n\n🔗 *Download bill:*\n${link}\n\n⏳ _Link expires in 12 hours_`;
     }
 
     const restaurantName = restaurantInfo?.name || 'Restaurant';
@@ -210,22 +210,16 @@ const BillingDashboard = () => {
     const billNumber = bill?.billNumber || 'N/A';
     const billDate = bill?.createdAt ? new Date(bill.createdAt).toLocaleDateString('en-IN') : '';
 
-    let message = `${restaurantName}\n`;
+    let message = `🍽️ *${restaurantName}*\n`;
+    message += `Thank you for dining with us!\n\n`;
     
-    if (contactPhone) {
-      message += `Phone: ${contactPhone}\n`;
-    }
-    if (contactEmail) {
-      message += `Email: ${contactEmail}\n`;
-    }
+    message += `🧾 *BILL SUMMARY*\n`;
+    message += `▪️ *Bill #:* ${billNumber}\n`;
+    message += `▪️ *Table #:* ${tableNumber}\n`;
+    message += `▪️ *Date:* ${billDate}\n\n`;
     
-    message += `\n---BILL SUMMARY---\n`;
-    message += `Bill #: ${billNumber}\n`;
-    message += `Table #: ${tableNumber}\n`;
-    message += `Date: ${billDate}\n`;
-    message += `---\n`;
-    
-    message += `\nSubtotal: ₹${Number(bill.subtotal || 0).toFixed(2)}\n`;
+    message += `💰 *CHARGES*\n`;
+    message += `Subtotal: ₹${Number(bill.subtotal || 0).toFixed(2)}\n`;
     
     if (Number(bill.taxAmount || 0) > 0) {
       message += `Tax: ₹${Number(bill.taxAmount).toFixed(2)}\n`;
@@ -240,20 +234,26 @@ const BillingDashboard = () => {
       message += `Extra Charges: ₹${Number(bill.extraCharges).toFixed(2)}\n`;
     }
     
-    message += `---\n`;
-    message += `TOTAL: ₹${Number(bill.totalAmount || 0).toFixed(2)}\n`;
-    message += `---\n`;
+    message += `\n💵 *TOTAL AMOUNT: ₹${Number(bill.totalAmount || 0).toFixed(2)}*\n\n`;
     
-    message += `\n\nDownload bill:\n${link}\n\n`;
+    message += `🔗 *Download Detailed Bill:*\n${link}\n\n`;
     
     const expiryTime = bill.shareLinks?.[0]?.expiresAt || shareLink?.expiresAt;
     if (expiryTime) {
       const expiryDate = new Date(expiryTime).toLocaleString('en-IN');
-      message += `Link expires: ${expiryDate}`;
+      message += `⏳ _Link expires: ${expiryDate}_\n\n`;
     } else {
-      message += `Link expires in: 12 hours`;
+      message += `⏳ _Link expires in: 12 hours_\n\n`;
     }
+
+    message += `We hope to see you again soon! ✨`;
     
+    if (contactPhone || contactEmail) {
+        message += `\n\n📞 *Contact Us:*\n`;
+        if (contactPhone) message += `Phone: ${contactPhone}\n`;
+        if (contactEmail) message += `Email: ${contactEmail}`;
+    }
+
     return message;
   };
 
