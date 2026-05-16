@@ -25,6 +25,7 @@ const StaffManagement = () => {
   const [otpStep, setOtpStep] = useState(false);
   const [otp, setOtp] = useState('');
   const [confirmationResult, setConfirmationResult] = useState(null);
+  const [otpSending, setOtpSending] = useState(false); // true while SMS is being dispatched
 
   const [pinModalStaff, setPinModalStaff] = useState(null);
   const [pinMode, setPinMode] = useState('change'); // 'change' | 'forgot'
@@ -87,13 +88,33 @@ const StaffManagement = () => {
       // CREATE MODE - Requires OTP
       const phoneWithCountry = formData.phone.startsWith('+91') ? formData.phone : '+91' + formData.phone;
 
-      // Step 1: Send SMS
+      // Step 1: Send SMS — show OTP widget INSTANTLY, send SMS in background
       if (!confirmationResult) {
-        setupRecaptcha();
-        const result = await signInWithPhoneNumber(auth, phoneWithCountry, window.recaptchaVerifier);
-        setConfirmationResult(result);
+        // Show OTP entry UI immediately so user doesn't wait
         setOtpStep(true);
+        setOtpSending(true);
         setLoading(false);
+
+        // Send SMS in background
+        try {
+          setupRecaptcha();
+          const result = await signInWithPhoneNumber(auth, phoneWithCountry, window.recaptchaVerifier);
+          setConfirmationResult(result);
+          setOtpSending(false);
+        } catch (smsError) {
+          console.error('OTP send failed:', smsError);
+          alert(smsError?.message || 'Failed to send OTP. Please try again.');
+          // Revert back to form if SMS fails
+          setOtpStep(false);
+          setOtpSending(false);
+          setConfirmationResult(null);
+          if (window.recaptchaVerifier) {
+            window.recaptchaVerifier.clear();
+            window.recaptchaVerifier = null;
+            const container = document.getElementById('recaptcha-container');
+            if (container) container.innerHTML = '';
+          }
+        }
         return;
       }
 
@@ -124,6 +145,7 @@ const StaffManagement = () => {
       }
       setConfirmationResult(null);
       setOtpStep(false);
+      setOtpSending(false);
       setOtp('');
     } finally {
       setLoading(false);
@@ -166,6 +188,7 @@ const StaffManagement = () => {
       isActive: true,
     });
     setOtpStep(false);
+    setOtpSending(false);
     setOtp('');
     setConfirmationResult(null);
     if (window.recaptchaVerifier) {
@@ -493,23 +516,30 @@ const StaffManagement = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             {otpStep ? (
               <div className="space-y-4 py-4 text-center">
-                <ShieldCheck className="w-16 h-16 text-green-500 mx-auto" />
-                <h3 className="text-lg font-medium text-gray-900">Enter Verification Code</h3>
-                <p className="text-sm text-gray-500">
-                  We've sent an SMS with a 6-digit code to +91 {formData.phone}
-                </p>
+                <ShieldCheck className={`w-16 h-16 mx-auto ${otpSending ? 'text-orange-400 animate-pulse' : 'text-green-500'}`} />
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">Enter Verification Code</h3>
+                {otpSending ? (
+                  <p className="text-sm text-orange-500 font-medium">
+                    Sending OTP to +91 {formData.phone}...
+                  </p>
+                ) : (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    We've sent an SMS with a 6-digit code to +91 {formData.phone}
+                  </p>
+                )}
                 <input
                   type="text"
                   value={otp}
                   onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  className="w-full text-center text-2xl tracking-widest py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                  className="w-full text-center text-2xl tracking-widest py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white disabled:opacity-50"
                   placeholder="000000"
                   required
                   autoFocus
+                  disabled={otpSending}
                 />
                 <div className="flex gap-3 pt-4">
-                  <Button type="submit" variant="primary" className="flex-1" disabled={loading || otp.length < 6}>
-                    {loading ? 'Verifying...' : 'Verify & Add Staff'}
+                  <Button type="submit" variant="primary" className="flex-1" disabled={loading || otpSending || otp.length < 6}>
+                    {loading ? 'Verifying...' : otpSending ? 'Waiting for OTP...' : 'Verify & Add Staff'}
                   </Button>
                 </div>
               </div>
